@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "glslify": "^7.1.1",
+    "regl": "^2.1.0",
+    "budo": "^11.7.0"
+  }
+}
