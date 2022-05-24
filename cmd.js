@@ -35,15 +35,12 @@ var codes = argv.code
   ? [].concat(argv.code).flatMap(c => c.split(',').map(Number))
   : Object.keys(font.glyphs.glyphs)
 
-var offset = 0
 pump(from(function (size, next) {
   if (isHeader) {
     var header = Buffer.alloc(magic.length + varint.encodingLength(font.unitsPerEm))
     magic.copy(header, 0)
     varint.encode(font.unitsPerEm, header, magic.length)
     isHeader = false
-    offset += header.length
-    console.error('offset=',offset)
     return next(null, header)
   }
   if (index >= codes.length) return next(null, null)
@@ -51,11 +48,7 @@ pump(from(function (size, next) {
     if (index >= codes.length) break
     var g = font.glyphs.glyphs[codes[index++]]
     if (g.unicodes.length === 0) continue
-    var buf = pack(g)
-    offset += buf.length
-    console.error('offset=',offset)
-    return next(null, buf)
-    //return next(null, pack(g))
+    return next(null, pack(g))
   }
   next(null, null)
 }), process.stdout, onerror)

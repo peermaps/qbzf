@@ -14,8 +14,10 @@
     "gl-vec2": "^1.3.0",
     "length-prefixed-buffers": "^1.1.0",
     "length-prefixed-stream": "^2.0.0",
+    "line-segment-intersect-2d": "^1.0.0",
     "minimist": "^1.2.6",
     "opentype.js": "^1.3.4",
+    "point-in-triangle": "^1.0.1",
     "varint": "^6.0.0"
   }
 }
