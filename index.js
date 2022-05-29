@@ -1,5 +1,5 @@
 var varint = require('varint')
-var magic = [0x71,0x62,0x7a,0x66,0x31] // qbzf1
+var magic = require('./lib/magic.js')
 var pointInTriangle = require('point-in-triangle')
 var lsi = require('line-segment-intersect-2d')
 var vec2set = require('gl-vec2/set')
@@ -15,6 +15,7 @@ function QBZF(src) {
   this._matches = new Map
   this._offsets = new Map
   this._index = 0
+  this.unitsPerEm = 0
   this._parse(src)
   this.curves = this._buildCurves()
 }
@@ -22,9 +23,11 @@ function QBZF(src) {
 QBZF.prototype._parse = function (src) {
   var offset = 0
   for (; offset < src.length && src[offset] !== 0x0a; offset++);
-  if (!(vcmp(src,0,offset,magic,0,magic.length))) return null
+  if (!(vcmp(src,0,offset,magic,0,magic.length))) {
+    throw new Error('magic number not found. not a valid qbzf1 file.')
+  }
   offset++
-  this._unitsPerEm = varint.decode(src, offset)
+  this.unitsPerEm = varint.decode(src, offset)
   offset += varint.decode.bytes
 
   while (offset < src.length) {
@@ -40,17 +43,17 @@ QBZF.prototype._parse = function (src) {
       offset += varint.decode.bytes
       key += ',' + String(u1)
     }
-    var advanceWidth = varint.decode(src, offset)
+    var advanceWidth = decode(src, offset)
     offset += varint.decode.bytes
-    var leftSideBearing = varint.decode(src, offset)
+    var leftSideBearing = decode(src, offset)
     offset += varint.decode.bytes
-    var xmin = varint.decode(src, offset)
+    var xmin = decode(src, offset)
     offset += varint.decode.bytes
-    var ymin = varint.decode(src, offset)
+    var ymin = decode(src, offset)
     offset += varint.decode.bytes
-    var xmax = varint.decode(src, offset)
+    var xmax = decode(src, offset)
     offset += varint.decode.bytes
-    var ymax = varint.decode(src, offset)
+    var ymax = decode(src, offset)
     offset += varint.decode.bytes
     var px = 0, py = 0
     var curves = [], indexes = []
@@ -97,40 +100,30 @@ QBZF.prototype._buildCurves = function () {
   for (var [key,g] of this._glyphs) {
     for (var i = 0; i < g.curves.length; i++) {
       var c = g.curves[i]
-      var offset = (g.indexes[i]%w)*(3*4)
+      var offset = g.indexes[i]*3*4
       if (c.length === 4) {
-        data[offset+0] = (c[0] >> 8) % 256
-        data[offset+1] = c[0] % 256
-        data[offset+2] = (c[1] >> 8) % 256
-        data[offset+3] = c[1] % 256
-        data[offset+4] = (c[0] >> 8) % 256
-        data[offset+5] = c[0] % 256
-        data[offset+6] = (c[1] >> 8) % 256
-        data[offset+7] = c[1] % 256
-        data[offset+8] = (c[2] >> 8) % 256
-        data[offset+9] = c[2] % 256
-        data[offset+10] = (c[3] >> 8) % 256
-        data[offset+11] = c[3] % 256
+        writeU16(data, offset+0, c[0]-g.bbox[0])
+        writeU16(data, offset+2, c[1]-g.bbox[1])
+        //writeU16(data, offset+4, c[0]-g.bbox[0])
+        //writeU16(data, offset+6, c[1]-g.bbox[1])
+        writeU16(data, offset+4, Math.round((c[0]+c[2])*0.5)-g.bbox[0])
+        writeU16(data, offset+6, Math.round((c[1]+c[3])*0.5)-g.bbox[1])
+        writeU16(data, offset+8, c[2]-g.bbox[0])
+        writeU16(data, offset+10, c[3]-g.bbox[1])
       } else if (c.length === 6) {
-        data[offset+0] = (c[0] >> 8) % 256
-        data[offset+1] = c[0] % 256
-        data[offset+2] = (c[1] >> 8) % 256
-        data[offset+3] = c[1] % 256
-        data[offset+4] = (c[2] >> 8) % 256
-        data[offset+5] = c[2] % 256
-        data[offset+6] = (c[3] >> 8) % 256
-        data[offset+7] = c[3] % 256
-        data[offset+8] = (c[4] >> 8) % 256
-        data[offset+9] = c[4] % 256
-        data[offset+10] = (c[5] >> 8) % 256
-        data[offset+11] = c[5] % 256
+        writeU16(data, offset+0, c[0]-g.bbox[0])
+        writeU16(data, offset+2, c[1]-g.bbox[1])
+        writeU16(data, offset+4, c[2]-g.bbox[0])
+        writeU16(data, offset+6, c[3]-g.bbox[1])
+        writeU16(data, offset+8, c[4]-g.bbox[0])
+        writeU16(data, offset+10, c[5]-g.bbox[1])
       }
     }
   }
-  return { data, width: w, height: h }
+  return { data, width: w*3, height: h, size: [w,h] }
 }
 
-QBZF.prototype.estimate = function (opts) {
+QBZF.prototype.measure = function (opts) {
   // calculate parameters for write(): grid, n, size
   throw new Error('not implemented')
 }
@@ -153,44 +146,42 @@ QBZF.prototype.write = function (opts) {
   for (var i = 0; i < text.length; i++) {
     // todo: lookahead for multi-codepoint
     var c = text.charCodeAt(i)
-    x += this._stamp(c, x, 0, size, grid, n, data)
+    x += this._stamp(c, x, 400, size, grid, n, data)
   }
-  return data
+  return { data, width: grid[0]*n*2, height: grid[1], size, grid, n }
 }
 
 QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
   var g = this._glyphs.get(String(code))
-  if (g === undefined) throw new Error('todo: glyph or hook for code not found')
-  var xstart = Math.floor((px + g.bbox[0] - g.leftSideBearing) / size[0] * grid[0])
-  var xend = Math.floor((px + g.bbox[2] - g.leftSideBearing) / size[0] * grid[0])
-  var ystart = Math.floor((py + g.bbox[1]) / size[1] * grid[1])
-  var yend = Math.floor((py + g.bbox[3]) / size[1] * grid[1])
-  for (var y = ystart; y < yend; y++) {
-    for (var x = xstart; x < xend; x++) {
+  if (g === undefined) throw new Error(`todo: glyph or hook for code not found: ${code}`)
+  var xstart = Math.max(0, Math.floor((px + g.bbox[0] - g.leftSideBearing) / size[0] * grid[0]))
+  var xend = Math.ceil((px + g.bbox[2] - g.leftSideBearing) / size[0] * grid[0])
+  var ystart = Math.max(0, Math.floor((py + g.bbox[1]) / size[1] * grid[1]))
+  var yend = Math.ceil((py + g.bbox[3]) / size[1] * grid[1])
+  var sg0 = size[0]/grid[0]
+  var sg1 = size[1]/grid[1]
+  for (var gy = ystart; gy < yend; gy++) {
+    for (var gx = xstart; gx < xend; gx++) {
+      rect[0] = gx/grid[0]*size[0]
+      rect[1] = gy/grid[1]*size[1]
+      rect[2] = (gx+1)/grid[0]*size[0]
+      rect[3] = (gy+1)/grid[1]*size[1]
       for (var i = 0; i < g.curves.length; i++) {
-        var c = g.curves[i]
-        rect[0] = x/grid[0]*size[0]
-        rect[1] = y/grid[1]*size[1]
-        rect[2] = (x+1)/grid[0]*size[1]
-        rect[3] = (y+1)/grid[1]*size[1]
-        if (!curveRectIntersect(c,rect)) continue
-        var m = this._matches.get(x+y*size[0]) ?? 0
+        if (!curveRectIntersect(g.curves[i],rect,px,py)) continue
+        var m = this._matches.get(gx+gy*size[0]) ?? 0
         if (m >= n) throw new Error(`grid density overflow from n=${n} grid=[${grid[0]},${grid[1]}]`)
-        this._matches.set(x+y*size[0], m+1)
-        var offset = ((x+y*size[0])*n+m)*2*4
-        var index = g.indexes[i]
-        data[offset+0] = (index >> 16) % 256
-        data[offset+1] = (index >> 8) % 256
-        data[offset+2] = index % 256
-        data[offset+3] = 0
-        data[offset+4] = ((px - x) >> 8) % 256
-        data[offset+5] = (px - x) % 256
-        data[offset+6] = ((py - y) >> 8) % 256
-        data[offset+7] = (py - y) % 256
+        this._matches.set(gx+gy*grid[0], m+1)
+        var offset = ((gx+gy*grid[0])*n*2+m)*4
+        var index = g.indexes[i]+1
+        writeU24(data, offset+0, index)
+        writeI16(data, offset+4, px)
+        writeI16(data, offset+6, py)
+        //writeI16(data, offset+4, Math.round(px-gx/grid[0]*size[0]))
+        //writeI16(data, offset+6, Math.round(py-gy/grid[1]*size[1]))
       }
     }
   }
-  return x + g.advanceWidth
+  return g.advanceWidth - g.leftSideBearing
 }
 
 function decode(src, offset) {
@@ -206,20 +197,22 @@ function vcmp(a,astart,aend,b,bstart,bend) {
   return true
 }
 
-function curveRectIntersect(c, rect) {
+function curveRectIntersect(c, rect, dx, dy) {
   if (c.length === 4) {
-    if (rect[0] <= c[0] && c[0] <= rect[2] && rect[1] <= c[1] && c[1] <= rect[3]) return true
-    vec2set(v1, c[0], c[1])
-    vec2set(v2, c[2], c[3])
+    var c0 = c[0]+dx, c1 = c[1]+dy, c2 = c[2]+dx, c3 = c[3]+dy
+    if (rect[0] <= c0 && c0 <= rect[2] && rect[1] <= c1 && c1 <= rect[3]) return true
+    vec2set(v1, c0, c1)
+    vec2set(v2, c2, c3)
     if (lsi(v0, v1, v2, vec2set(v3,rect[0],rect[1]), vec2set(v4,rect[0],rect[3]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[0],rect[3]), vec2set(v4,rect[2],rect[3]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[3]), vec2set(v4,rect[2],rect[1]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[1]), vec2set(v4,rect[0],rect[1]))) return true
   } else if (c.length === 6) { // actually the triangle but close enough approximation
-    if (rect[0] <= c[0] && c[0] <= rect[2] && rect[1] <= c[1] && c[1] <= rect[3]) return true
-    vec2set(tri[0], c[0], c[1])
-    vec2set(tri[1], c[2], c[3])
-    vec2set(tri[2], c[4], c[5])
+    var c0 = c[0]+dx, c1 = c[1]+dy, c2 = c[2]+dx, c3 = c[3]+dy, c4 = c[4]+dx, c5 = c[5]+dy
+    if (rect[0] <= c0 && c0 <= rect[2] && rect[1] <= c1 && c1 <= rect[3]) return true
+    vec2set(tri[0], c0, c1)
+    vec2set(tri[1], c2, c3)
+    vec2set(tri[2], c4, c5)
     if (pointInTriangle(vec2set(v0,rect[0],rect[1]),tri)) return true
     for (var i = 0; i < 3; i++) {
       if (lsi(v0, tri[i], tri[(i+1)%3], vec2set(v1,rect[0],rect[1]), vec2set(v2,rect[0],rect[3]))) return true
@@ -229,4 +222,19 @@ function curveRectIntersect(c, rect) {
     }
   }
   return false
+}
+
+function writeU16(out, offset, x) {
+  out[offset+0] = (x >> 8) % 256
+  out[offset+1] = x % 256
+}
+function writeI16(out, offset, x) {
+  var ax = Math.abs(x)
+  out[offset+0] = (ax >> 8) % 128 + (x < 0 ? 128 : 0)
+  out[offset+1] = ax % 256
+}
+function writeU24(out, offset, x) {
+  out[offset+0] = (x >> 16) % 256
+  out[offset+1] = (x >> 8) % 256
+  out[offset+2] = x % 256
 }

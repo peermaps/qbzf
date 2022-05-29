@@ -19,7 +19,7 @@ var argv = minimist(process.argv.slice(2), {
   default: { outfile: '-' },
 })
 
-var magic = Buffer.from('qbzf1\n')
+var magic = Buffer.from(require('./lib/magic.js').concat(0x0a))
 
 var infile = argv.infile ?? argv._[0]
 if (argv.version) return console.log(require('./package.json').version)
