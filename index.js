@@ -168,10 +168,10 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       rect[3] = (gy+1)/grid[1]*size[1]
       for (var i = 0; i < g.curves.length; i++) {
         if (!curveRectIntersect(g.curves[i],rect,px,py)) continue
-        var m = this._matches.get(gx+gy*size[0]) ?? 0
+        var m = this._matches.get(gx+gy*grid[0]) ?? 0
         if (m >= n) throw new Error(`grid density overflow from n=${n} grid=[${grid[0]},${grid[1]}]`)
         this._matches.set(gx+gy*grid[0], m+1)
-        var offset = ((gx+gy*grid[0])*n*2+m)*4
+        var offset = ((gx+gy*grid[0])*n*2+m*2)*4
         var index = g.indexes[i]+1
         writeU24(data, offset+0, index)
         writeI16(data, offset+4, px)
