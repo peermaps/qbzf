@@ -7,11 +7,10 @@ window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
 ;(async function () {
-  var qbzf = new QBZF(new Uint8Array(await (await fetch('/test3')).arrayBuffer()))
+  var qbzf = new QBZF(new Uint8Array(await (await fetch('/test11')).arrayBuffer()))
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
-  data.grid = qbzf.write({ text: 'w', size: [1500,1500], grid: [4,4], n: 4 })
-  //data.grid = qbzf.write({ text: 'w', size: [5000,2500], grid: [40,20], n: 4 })
+  data.grid = qbzf.write({ text: 'w', size: [1000,1000], grid: [4,4], n: 4 })
   data.grid.texture = regl.texture(data.grid)
   data.unitsPerEm = qbzf.unitsPerEm
   draw = build(data.grid.n)
@@ -58,16 +57,8 @@ function build(n) {
         vec2 fuv = floor(uv*gridGrid)/gridGrid;
         float match = 0.0;
         for (int i = 0; i < ${n}; i++) {
-          //vec2 i0 = fuv + vec2((0.5+float(i)*2.0)/(gridGrid.x*2.0*gridN),0.5/gridGrid.y);
-          //vec2 i1 = fuv + vec2((1.5+float(i)*2.0)/(gridGrid.x*2.0*gridN),0.5/gridGrid.y);
-          vec2 i0 = fuv + vec2(
-            (0.5+float(i)*2.0)/(gridGrid.x*2.0*gridN),
-            0.5/gridGrid.y
-          );
-          vec2 i1 = fuv + vec2(
-            (1.5+float(i)*2.0)/(gridGrid.x*2.0*gridN),
-            0.5/gridGrid.y
-          );
+          vec2 i0 = fuv + vec2((0.5+float(i)*2.0)/(gridGrid.x*2.0*gridN),0.5/gridGrid.y);
+          vec2 i1 = fuv + vec2((1.5+float(i)*2.0)/(gridGrid.x*2.0*gridN),0.5/gridGrid.y);
           vec4 g0 = texture2D(gridTex, i0);
           vec4 g1 = texture2D(gridTex, i1);
           float index = parseU24BE(g0.xyz);
@@ -77,7 +68,7 @@ function build(n) {
           vec2 b0 = readBz(curveTex, curveSize, index-1.0, 0.0);
           vec2 b1 = readBz(curveTex, curveSize, index-1.0, 1.0);
           vec2 b2 = readBz(curveTex, curveSize, index-1.0, 2.0);
-          x += raycast(uv*gridSize+d, b0, b1, b2);
+          x += raycast((uv-fuv)*gridSize+d, b0, b1, b2);
         }
         if (match < 0.5) discard;
         gl_FragColor = vec4(mod(x,2.0),match*0.5,0,1);

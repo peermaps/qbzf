@@ -146,7 +146,7 @@ QBZF.prototype.write = function (opts) {
   for (var i = 0; i < text.length; i++) {
     // todo: lookahead for multi-codepoint
     var c = text.charCodeAt(i)
-    x += this._stamp(c, x, 400, size, grid, n, data)
+    x += this._stamp(c, x, 0, size, grid, n, data)
   }
   return { data, width: grid[0]*n*2, height: grid[1], size, grid, n }
 }
@@ -174,10 +174,8 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
         var offset = ((gx+gy*grid[0])*n*2+m*2)*4
         var index = g.indexes[i]+1
         writeU24(data, offset+0, index)
-        writeI16(data, offset+4, px)
-        writeI16(data, offset+6, py)
-        //writeI16(data, offset+4, Math.round(px-gx/grid[0]*size[0]))
-        //writeI16(data, offset+6, Math.round(py-gy/grid[1]*size[1]))
+        writeI16(data, offset+4, Math.round(px-gx/grid[0]*size[0]))
+        writeI16(data, offset+6, Math.round(py-gy/grid[1]*size[1]))
       }
     }
   }
