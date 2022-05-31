@@ -139,7 +139,7 @@ QBZF.prototype.write = function (opts) {
   var grid = opts.grid
   var n = opts.n
   var text = opts.text
-  var length = grid[0]*grid[1]*n*2*4
+  var length = grid[0]*grid[1]*(1+n*2)*4
   var data = opts.data ?? new Uint8Array(length)
   this._matches.clear()
   if (data.length < length) {
@@ -154,7 +154,7 @@ QBZF.prototype.write = function (opts) {
     var c = text.charCodeAt(i)
     x += this._stamp(c, x, 0, size, grid, n, data)
   }
-  return { data, width: grid[0]*n*2, height: grid[1], size, grid, n }
+  return { data, width: grid[0]*(1+n*2), height: grid[1], size, grid, n }
 }
 
 QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
@@ -182,14 +182,17 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
         var m = this._matches.get(gx+gy*grid[0]) ?? 0
         if (m >= n) throw new Error(`grid density overflow from n=${n} grid=[${grid[0]},${grid[1]}]`)
         this._matches.set(gx+gy*grid[0], m+1)
-        var offset = ((gx+gy*grid[0])*n*2+m*2)*4
+        var offset = ((gx+gy*grid[0])*(n*2+1)+1+m*2)*4
         var index = g.indexes[i]+1
         writeU24(data, offset+0, index)
         writeI16(data, offset+4, Math.round(px-gx/grid[0]*size[0]))
         writeI16(data, offset+6, Math.round(py-gy/grid[1]*size[1]))
       }
       mivxa(iv, iv, vec2set(v0, rect[1], rect[3]))
-      console.log(JSON.stringify(iv), rect[1], rect[3])
+      var offset = (gx+gy*grid[0])*(n*2+1)*4
+      var y0 = iv[0] ?? 0, y1 = iv[1] ?? 0
+      writeI16(data, offset+0, Math.round(y0-gx/grid[0]*size[0]))
+      writeI16(data, offset+2, Math.round(y1-gy/grid[1]*size[1]))
     }
   }
   return g.advanceWidth - g.leftSideBearing

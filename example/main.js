@@ -55,20 +55,27 @@ function build(n) {
         float x = 0.0;
         vec2 uv = vpos*0.5+0.5;
         vec2 fuv = floor(uv*gridGrid)/gridGrid;
+        vec2 p = (uv-fuv)*gridSize;
+
+        vec2 i0 = fuv + vec2(0.5/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
+        vec4 g0 = texture2D(gridTex, i0);
+        vec2 ra = vec2(parseI16BE(g0.xy), parseI16BE(g0.zw));
+        x += min(step(ra.x,p.y),step(p.y,ra.y));
+
         float match = 0.0;
         for (int i = 0; i < ${n}; i++) {
-          vec2 i0 = fuv + vec2((0.5+float(i)*2.0)/(gridGrid.x*2.0*gridN),0.5/gridGrid.y);
-          vec2 i1 = fuv + vec2((1.5+float(i)*2.0)/(gridGrid.x*2.0*gridN),0.5/gridGrid.y);
-          vec4 g0 = texture2D(gridTex, i0);
+          vec2 i1 = fuv + vec2((1.5+float(i)*2.0)/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
+          vec2 i2 = fuv + vec2((2.5+float(i)*2.0)/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
           vec4 g1 = texture2D(gridTex, i1);
-          float index = parseU24BE(g0.xyz);
+          vec4 g2 = texture2D(gridTex, i2);
+          float index = parseU24BE(g1.xyz);
           if (index < 0.5) break;
-          vec2 d = vec2(parseI16BE(g1.xy), parseI16BE(g1.zw));
+          vec2 d = vec2(parseI16BE(g2.xy), parseI16BE(g2.zw));
           match += 1.0;
           vec2 b0 = readBz(curveTex, curveSize, index-1.0, 0.0);
           vec2 b1 = readBz(curveTex, curveSize, index-1.0, 1.0);
           vec2 b2 = readBz(curveTex, curveSize, index-1.0, 2.0);
-          x += raycast((uv-fuv)*gridSize+d, b0, b1, b2);
+          x += raycast(p+d, b0, b1, b2);
         }
         if (match < 0.5) discard;
         gl_FragColor = vec4(mod(x,2.0),match*0.5,0,1);
