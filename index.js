@@ -1,5 +1,6 @@
 var varint = require('varint')
 var magic = require('./lib/magic.js')
+var bzri = require('./lib/bz-box-intersect.js')
 var pointInTriangle = require('point-in-triangle')
 var lsi = require('line-segment-intersect-2d')
 var vec2set = require('gl-vec2/set')
@@ -206,18 +207,7 @@ function curveRectIntersect(c, rect, dx, dy) {
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[3]), vec2set(v4,rect[2],rect[1]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[1]), vec2set(v4,rect[0],rect[1]))) return true
   } else if (c.length === 6) { // actually the triangle but close enough approximation
-    var c0 = c[0]+dx, c1 = c[1]+dy, c2 = c[2]+dx, c3 = c[3]+dy, c4 = c[4]+dx, c5 = c[5]+dy
-    if (rect[0] <= c0 && c0 <= rect[2] && rect[1] <= c1 && c1 <= rect[3]) return true
-    vec2set(tri[0], c0, c1)
-    vec2set(tri[1], c2, c3)
-    vec2set(tri[2], c4, c5)
-    if (pointInTriangle(vec2set(v0,rect[0],rect[1]),tri)) return true
-    for (var i = 0; i < 3; i++) {
-      if (lsi(v0, tri[i], tri[(i+1)%3], vec2set(v1,rect[0],rect[1]), vec2set(v2,rect[0],rect[3]))) return true
-      if (lsi(v0, tri[i], tri[(i+1)%3], vec2set(v1,rect[0],rect[3]), vec2set(v2,rect[2],rect[3]))) return true
-      if (lsi(v0, tri[i], tri[(i+1)%3], vec2set(v1,rect[2],rect[3]), vec2set(v2,rect[2],rect[1]))) return true
-      if (lsi(v0, tri[i], tri[(i+1)%3], vec2set(v1,rect[2],rect[1]), vec2set(v2,rect[0],rect[1]))) return true
-    }
+    return bzri(rect, c, dx, dy)
   }
   return false
 }
