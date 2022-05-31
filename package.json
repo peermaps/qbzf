@@ -5,7 +5,8 @@
   "devDependencies": {
     "budo": "^11.7.0",
     "glslify": "^7.1.1",
-    "regl": "^2.1.0"
+    "regl": "^2.1.0",
+    "tape": "^5.5.3"
   },
   "dependencies": {
     "bezier-intersect": "^0.0.3",
@@ -17,7 +18,6 @@
     "line-segment-intersect-2d": "^1.0.0",
     "minimist": "^1.2.6",
     "opentype.js": "^1.3.4",
-    "point-in-triangle": "^1.0.1",
     "varint": "^6.0.0"
   }
 }

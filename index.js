@@ -1,9 +1,14 @@
+var lsi = require('line-segment-intersect-2d')
+var vec2set = require('gl-vec2/set')
 var varint = require('varint')
 var magic = require('./lib/magic.js')
 var bzri = require('./lib/bz-box-intersect.js')
-var pointInTriangle = require('point-in-triangle')
-var lsi = require('line-segment-intersect-2d')
-var vec2set = require('gl-vec2/set')
+var ivxor = require('./lib/ivxor.js')
+var ivand = require('./lib/ivand.js')
+var mivxor = require('./lib/mivxor.js')
+var mivand = require('./lib/mivand.js')
+var mivxa = require('./lib/mivxa.js')
+
 var tri = [[0,0],[0,0],[0,0]]
 var rect = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
@@ -167,8 +172,13 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       rect[1] = gy/grid[1]*size[1]
       rect[2] = (gx+1)/grid[0]*size[0]
       rect[3] = (gy+1)/grid[1]*size[1]
+      var iv = [rect[1],rect[3]]
       for (var i = 0; i < g.curves.length; i++) {
-        if (!curveRectIntersect(g.curves[i],rect,px,py)) continue
+        var c = g.curves[i]
+        if (!curveRectIntersect(c,rect,px,py)) {
+          iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
+          continue
+        }
         var m = this._matches.get(gx+gy*grid[0]) ?? 0
         if (m >= n) throw new Error(`grid density overflow from n=${n} grid=[${grid[0]},${grid[1]}]`)
         this._matches.set(gx+gy*grid[0], m+1)
@@ -178,6 +188,8 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
         writeI16(data, offset+4, Math.round(px-gx/grid[0]*size[0]))
         writeI16(data, offset+6, Math.round(py-gy/grid[1]*size[1]))
       }
+      mivxa(iv, iv, vec2set(v0, rect[1], rect[3]))
+      console.log(JSON.stringify(iv), rect[1], rect[3])
     }
   }
   return g.advanceWidth - g.leftSideBearing
