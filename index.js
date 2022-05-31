@@ -197,7 +197,7 @@ function vcmp(a,astart,aend,b,bstart,bend) {
 }
 
 function curveRectIntersect(c, rect, dx, dy) {
-  if (c.length === 4) {
+  if (c.length === 4) { // line
     var c0 = c[0]+dx, c1 = c[1]+dy, c2 = c[2]+dx, c3 = c[3]+dy
     if (rect[0] <= c0 && c0 <= rect[2] && rect[1] <= c1 && c1 <= rect[3]) return true
     vec2set(v1, c0, c1)
@@ -206,8 +206,8 @@ function curveRectIntersect(c, rect, dx, dy) {
     if (lsi(v0, v1, v2, vec2set(v3,rect[0],rect[3]), vec2set(v4,rect[2],rect[3]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[3]), vec2set(v4,rect[2],rect[1]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[1]), vec2set(v4,rect[0],rect[1]))) return true
-  } else if (c.length === 6) { // actually the triangle but close enough approximation
-    return bzri(rect, c, dx, dy)
+  } else if (c.length === 6) { // quadratic bezier
+    return bzri(rect, c, dx, dy) // todo: padding for border width
   }
   return false
 }
