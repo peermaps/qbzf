@@ -10,7 +10,7 @@ var data = { curves: null, grid: null }
   var qbzf = new QBZF(new Uint8Array(await (await fetch('/test11')).arrayBuffer()))
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
-  data.grid = qbzf.write({ text: 'w', size: [1000,1000], grid: [4,5], n: 4 })
+  data.grid = qbzf.write({ text: 'w', size: [1000,1000], grid: [4,4], n: 4 })
   data.grid.texture = regl.texture(data.grid)
   data.unitsPerEm = qbzf.unitsPerEm
   draw = build(data.grid.n)
@@ -55,12 +55,17 @@ function build(n) {
         float x = 0.0;
         vec2 uv = vpos*0.5+0.5;
         vec2 fuv = floor(uv*gridGrid)/gridGrid;
+        vec2 rbuv = fuv + vec2(1)/gridGrid;
         vec2 p = (uv-fuv)*gridSize;
 
         vec2 i0 = fuv + vec2(0.5/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
         vec4 g0 = texture2D(gridTex, i0);
-        vec2 ra = vec2(parseI16BE(g0.xy), parseI16BE(g0.zw));
-        x += min(step(ra.x,p.y),step(p.y,ra.y));
+        vec2 ra = vec2(parseU16BE(g0.xy), parseU16BE(g0.zw));
+        x += min(
+          min(step(ra.x,p.y),step(p.y,ra.y)),
+          step(1e-8,abs(ra.x-ra.y))
+        );
+        //x += raycast(p, vec2(rbuv.x,fuv.y), vec2(rbuv.x,(fuv.y+rbuv.y)*0.5), rbuv);
 
         float match = 0.0;
         for (int i = 0; i < ${n}; i++) {
@@ -77,7 +82,7 @@ function build(n) {
           vec2 b2 = readBz(curveTex, curveSize, index-1.0, 2.0);
           x += raycast(p+d, b0, b1, b2);
         }
-        if (match < 0.5) discard;
+        //if (match < 0.5) discard;
         gl_FragColor = vec4(mod(x,2.0),match*0.5,0,1);
       }
     `,

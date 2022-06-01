@@ -8,6 +8,8 @@ var ivand = require('./lib/ivand.js')
 var mivxor = require('./lib/mivxor.js')
 var mivand = require('./lib/mivand.js')
 var mivxa = require('./lib/mivxa.js')
+var raycast = require('./lib/raycast.js')
+var bz = require('./lib/bz.js')
 
 var tri = [[0,0],[0,0],[0,0]]
 var rect = [0,0,0,0]
@@ -19,6 +21,7 @@ function QBZF(src) {
   if (!(this instanceof QBZF)) return new QBZF(src)
   this._glyphs = new Map
   this._matches = new Map
+  this._iv = new Map
   this._offsets = new Map
   this._index = 0
   this.unitsPerEm = 0
@@ -172,27 +175,39 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       rect[1] = gy/grid[1]*size[1]
       rect[2] = (gx+1)/grid[0]*size[0]
       rect[3] = (gy+1)/grid[1]*size[1]
-      var iv = [rect[1],rect[3]]
+      var gk = gx+gy*grid[0]
+      var iv = this._iv.get(gk) ?? []
+      var m = this._matches.get(gk) ?? 0
+      var crossings = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
         if (!curveRectIntersect(c,rect,px,py)) {
-          iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
+          crossings += countRaycast(vec2set(v0,rect[0],(rect[1]+rect[3])*0.5),c)
           continue
         }
-        var m = this._matches.get(gx+gy*grid[0]) ?? 0
+        iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
         if (m >= n) throw new Error(`grid density overflow from n=${n} grid=[${grid[0]},${grid[1]}]`)
-        this._matches.set(gx+gy*grid[0], m+1)
-        var offset = ((gx+gy*grid[0])*(n*2+1)+1+m*2)*4
+        var offset = (gk*(n*2+1)+1+m*2)*4
         var index = g.indexes[i]+1
         writeU24(data, offset+0, index)
         writeI16(data, offset+4, Math.round(px-gx/grid[0]*size[0]))
         writeI16(data, offset+6, Math.round(py-gy/grid[1]*size[1]))
+        m++
       }
-      mivxa(iv, iv, vec2set(v0, rect[1], rect[3]))
+      this._matches.set(gk, m)
+      var y0 = 0, y1 = 0
+      if (m === 0 && crossings > 0) {
+        y0 = rect[1]
+        y1 = rect[3]
+      } else if (crossings % 2 > 0) {
+        mivxa(iv, iv, vec2set(v0, rect[1], rect[3]))
+        y0 = iv[0] ?? rect[1]
+        y1 = iv[1] ?? rect[1]
+      }
+      this._iv.set(gk, iv)
       var offset = (gx+gy*grid[0])*(n*2+1)*4
-      var y0 = iv[0] ?? 0, y1 = iv[1] ?? 0
-      writeI16(data, offset+0, Math.round(y0-gx/grid[0]*size[0]))
-      writeI16(data, offset+2, Math.round(y1-gy/grid[1]*size[1]))
+      writeU16(data, offset+0, Math.round(y0-rect[1]))
+      writeU16(data, offset+2, Math.round(y1-rect[1]))
     }
   }
   return g.advanceWidth - g.leftSideBearing
@@ -240,4 +255,19 @@ function writeU24(out, offset, x) {
   out[offset+0] = (x >> 16) % 256
   out[offset+1] = (x >> 8) % 256
   out[offset+2] = x % 256
+}
+
+function countRaycast(p, c) {
+  var x = p[0], y = p[1]
+  var n = raycast(v0, rect[3], c[1], c[3], c[5])
+  var count = 0
+  if (n > 0) {
+    var x0 = bz(c[0],c[2],c[4],v0[0])
+    if (x0 > x) count++
+  }
+  if (n > 1) {
+    var x1 = bz(c[0],c[2],c[4],v0[1])
+    if (x1 > x) count++
+  }
+  return count
 }
