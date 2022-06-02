@@ -7,11 +7,13 @@ window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
 ;(async function () {
-  //var qbzf = new QBZF(new Uint8Array(await (await fetch('/test11')).arrayBuffer()))
+  var qbzf = new QBZF(new Uint8Array(await (await fetch('/test16')).arrayBuffer()))
+  /*
   var qbzf = new QBZF(Uint8Array.from([
     113,98,122,102,49,10,220,11,6,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
     140,14,216,29,192,12,160,6,211,4,231,7,191,12,159,6
   ]))
+  */
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
   data.grid = qbzf.write({ text: 'w', size: [1000,1000], grid: [5,5], n: 4 })
@@ -41,8 +43,8 @@ function build(n) {
         return v.x*65280.0 + v.y*255.0;
       }
       float parseI16BE(vec2 v) {
-        float a = 65280.0, b = 32640.0, s = step(b,v.x*a);;
-        return (mod(v.x*a,b) + v.y*255.0) * mix(-1.0,1.0,s) - mix(0.0,128.0,s);
+        float a = 65280.0, b = 32640.0, s = step(b,v.x*a);
+        return (mod(v.x*a,b) + v.y*255.0) * mix(1.0,-1.0,s) - mix(0.0,128.0,s);
       }
       float parseU24BE(vec3 v) {
         return v.x*16711680.0 + v.y*65280.0 + v.z*255.0;
@@ -52,7 +54,7 @@ function build(n) {
           (mod(index,size.x)*3.0+i+0.5)/(3.0*size.x),
           floor(index/size.x) / (size.y-1.0)
         ));
-        return vec2(parseU16BE(c.xy),parseU16BE(c.zw));
+        return vec2(parseI16BE(c.xy),parseI16BE(c.zw));
       }
 
       void main() {

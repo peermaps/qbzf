@@ -109,21 +109,21 @@ QBZF.prototype._buildCurves = function () {
       var c = g.curves[i]
       var offset = g.indexes[i]*3*4
       if (c.length === 4) {
-        writeU16(data, offset+0, c[0]-g.bbox[0])
-        writeU16(data, offset+2, c[1]-g.bbox[1])
+        writeI16(data, offset+0, c[0]-g.bbox[0])
+        writeI16(data, offset+2, c[1]-g.bbox[1])
         //writeU16(data, offset+4, c[0]-g.bbox[0])
         //writeU16(data, offset+6, c[1]-g.bbox[1])
-        writeU16(data, offset+4, Math.round((c[0]+c[2])*0.5)-g.bbox[0])
-        writeU16(data, offset+6, Math.round((c[1]+c[3])*0.5)-g.bbox[1])
-        writeU16(data, offset+8, c[2]-g.bbox[0])
-        writeU16(data, offset+10, c[3]-g.bbox[1])
+        writeI16(data, offset+4, Math.round((c[0]+c[2])*0.5)-g.bbox[0])
+        writeI16(data, offset+6, Math.round((c[1]+c[3])*0.5)-g.bbox[1])
+        writeI16(data, offset+8, c[2]-g.bbox[0])
+        writeI16(data, offset+10, c[3]-g.bbox[1])
       } else if (c.length === 6) {
-        writeU16(data, offset+0, c[0]-g.bbox[0])
-        writeU16(data, offset+2, c[1]-g.bbox[1])
-        writeU16(data, offset+4, c[2]-g.bbox[0])
-        writeU16(data, offset+6, c[3]-g.bbox[1])
-        writeU16(data, offset+8, c[4]-g.bbox[0])
-        writeU16(data, offset+10, c[5]-g.bbox[1])
+        writeI16(data, offset+0, c[0]-g.bbox[0])
+        writeI16(data, offset+2, c[1]-g.bbox[1])
+        writeI16(data, offset+4, c[2]-g.bbox[0])
+        writeI16(data, offset+6, c[3]-g.bbox[1])
+        writeI16(data, offset+8, c[4]-g.bbox[0])
+        writeI16(data, offset+10, c[5]-g.bbox[1])
       }
     }
   }
@@ -191,8 +191,8 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
         var offset = (gk*(n*2+1)+1+m*2)*4
         var index = g.indexes[i]+1
         writeU24(data, offset+0, index)
-        writeI16(data, offset+4, Math.round(px-gx/grid[0]*size[0]))
-        writeI16(data, offset+6, Math.round(py-gy/grid[1]*size[1]))
+        writeI16(data, offset+4, Math.round(gx/grid[0]*size[0]-px))
+        writeI16(data, offset+6, Math.round(gy/grid[1]*size[1]-py))
         m++
       }
       this._matches.set(gk, m)
