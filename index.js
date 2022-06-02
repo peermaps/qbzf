@@ -13,8 +13,9 @@ var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
 
 module.exports = QBZF
 
-function QBZF(src) {
-  if (!(this instanceof QBZF)) return new QBZF(src)
+function QBZF(src, opts) {
+  if (!(this instanceof QBZF)) return new QBZF(src, opts)
+  if (!opts) opts = {}
   this._glyphs = new Map
   this._matches = new Map
   this._iv = new Map
@@ -23,6 +24,7 @@ function QBZF(src) {
   this.unitsPerEm = 0
   this._parse(src)
   this.curves = this._buildCurves()
+  this._epsilon = opts.epsilon ?? 1e-8
 }
 
 QBZF.prototype._parse = function (src) {
@@ -178,7 +180,10 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
         if (!curveRectIntersect(c,rect,px,py)) {
-          crossings += countRaycast(vec2set(v0,rect[0],(rect[1]+rect[3])*0.5),c)
+          vec2set(v0,rect[2],rect[1])
+          if (Math.abs(c[1]-v0[1]) < this._epsilon) v0[1] += this._epsilon
+          else if (Math.abs(c[5]-v0[1]) < this._epsilon) v0[1] += this._epsilon
+          crossings += countRaycast(v0,c)
           continue
         }
         iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
@@ -192,7 +197,7 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       }
       this._matches.set(gk, m)
       var y0 = 0, y1 = 0
-      if (m === 0 && crossings > 0) {
+      if (m === 0 && crossings % 2 > 0) {
         y0 = rect[1]
         y1 = rect[3]
       } else if (crossings % 2 > 0) {
@@ -255,7 +260,7 @@ function writeU24(out, offset, x) {
 
 function countRaycast(p, c) {
   var x = p[0], y = p[1]
-  var n = raycast(v0, rect[3], c[1], c[3], c[5])
+  var n = raycast(v0, p[1], c[1], c[3], c[5])
   var count = 0
   if (n > 0) {
     var x0 = bz(c[0],c[2],c[4],v0[0])

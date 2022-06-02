@@ -7,10 +7,14 @@ window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
 ;(async function () {
-  var qbzf = new QBZF(new Uint8Array(await (await fetch('/test11')).arrayBuffer()))
+  //var qbzf = new QBZF(new Uint8Array(await (await fetch('/test11')).arrayBuffer()))
+  var qbzf = new QBZF(Uint8Array.from([
+    113,98,122,102,49,10,220,11,6,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
+    140,14,216,29,192,12,160,6,211,4,231,7,191,12,159,6
+  ]))
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
-  data.grid = qbzf.write({ text: 'w', size: [1000,1000], grid: [4,4], n: 4 })
+  data.grid = qbzf.write({ text: 'w', size: [1000,1000], grid: [5,5], n: 4 })
   data.grid.texture = regl.texture(data.grid)
   data.unitsPerEm = qbzf.unitsPerEm
   draw = build(data.grid.n)
@@ -83,7 +87,8 @@ function build(n) {
           x += raycast(p+d, b0, b1, b2);
         }
         //if (match < 0.5) discard;
-        gl_FragColor = vec4(mod(x,2.0),match*0.5,0,1);
+        float b = step(0.95,(uv.x-fuv.x)*gridGrid.x)*min(step(ra.x,p.y),step(p.y,ra.y));
+        gl_FragColor = vec4(mod(x,2.0),match*0.5,b,1);
       }
     `,
     vert: `
