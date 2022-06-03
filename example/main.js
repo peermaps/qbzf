@@ -90,7 +90,11 @@ function build(n) {
         }
         //if (match < 0.5) discard;
         float b = step(0.95,(uv.x-fuv.x)*gridGrid.x)*min(step(ra.x,p.y),step(p.y,ra.y));
-        gl_FragColor = vec4(mod(x,2.0),match*0.5,b,1);
+        float f = 1.0 - max(
+          step(0.99,(uv.y-fuv.y)*gridGrid.y),
+          step(0.99,(uv.x-fuv.x)*gridGrid.x)
+        )*0.5;
+        gl_FragColor = vec4(vec3(mod(x,2.0),match*0.5,b)*f,1);
       }
     `,
     vert: `
