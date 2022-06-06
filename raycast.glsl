@@ -18,6 +18,8 @@ float raycast(vec2 p, vec2 b0, vec2 b1, vec2 b2, float epsilon) {
   float nx = bz(b0.x, b1.x, b2.x, nt);
   float s0 = min(min(step(0.0,pt),step(pt,1.0)),step(p.x,px));
   float s1 = min(min(step(0.0,nt),step(nt,1.0)),step(p.x,nx));
+  //s0 = min(s0,min(step(bounds.x,px),step(px,bounds.z)));
+  //s1 = min(s1,min(step(bounds.x,nx),step(nx,bounds.z)));
   return s0 + s1;
 }
 

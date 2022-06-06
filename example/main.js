@@ -3,20 +3,27 @@ var regl = require('regl')()
 var QBZF = require('../')
 
 var draw = null
+var q = new URLSearchParams(location.search)
+var grid = (q.get('grid') || '5,5').split(',').map(Number)
 window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
 ;(async function () {
-  var qbzf = new QBZF(new Uint8Array(await (await fetch('/test16')).arrayBuffer()))
-  /*
+  //var qbzf = new QBZF(new Uint8Array(await (await fetch('/test16')).arrayBuffer()))
   var qbzf = new QBZF(Uint8Array.from([
-    113,98,122,102,49,10,220,11,6,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
-    140,14,216,29,192,12,160,6,211,4,231,7,191,12,159,6
+    113,98,122,102,49,10,220,11,8,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
+    140,14,216,29,192,12,160,6,179,23,160,6,215,4,215,4,180,9,159,6,231,7,199,1
+    //113,98,122,102,49,10,220,11,6,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
+    //140,14,216,29,192,12,160,6,211,4,231,7,191,12,159,6
   ]))
-  */
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
-  data.grid = qbzf.write({ text: 'w', size: [1000,1000], grid: [5,5], n: 4 })
+  data.grid = qbzf.write({
+    text: 'w',
+    size: [1000,1000],
+    grid,
+    n: 4,
+  })
   data.grid.texture = regl.texture(data.grid)
   data.unitsPerEm = qbzf.unitsPerEm
   draw = build(data.grid.n)
@@ -63,6 +70,7 @@ function build(n) {
         vec2 fuv = floor(uv*gridGrid)/gridGrid;
         vec2 rbuv = fuv + vec2(1)/gridGrid;
         vec2 p = (uv-fuv)*gridSize;
+        //vec4 bounds = vec4(fuv*gridSize, rbuv*gridSize);
 
         vec2 i0 = fuv + vec2(0.5/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
         vec4 g0 = texture2D(gridTex, i0);

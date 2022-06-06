@@ -2,14 +2,18 @@ var lsi = require('line-segment-intersect-2d')
 var vec2set = require('gl-vec2/set')
 var varint = require('varint')
 var magic = require('./lib/magic.js')
-var bzri = require('./lib/bz-box-intersect.js')
+var bzri = require('./lib/bzri.js')
+var bzr = require('./lib/bzr.js')
 var mivxa = require('./lib/mivxa.js')
 var raycast = require('./lib/raycast.js')
 var bz = require('./lib/bz.js')
+var support = require('./lib/support.js')
 
 var tri = [[0,0],[0,0],[0,0]]
 var rect = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
+var r0 = [0,0,0,0], r1 = [0,0,0,0]
+var t0 = [0,0,0,0,0,0]
 
 module.exports = QBZF
 
@@ -164,7 +168,7 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
   var xstart = Math.max(0, Math.floor((px + g.bbox[0] - g.leftSideBearing) / size[0] * grid[0]))
   var xend = Math.ceil((px + g.bbox[2] - g.leftSideBearing) / size[0] * grid[0])
   var ystart = Math.max(0, Math.floor((py + g.bbox[1]) / size[1] * grid[1]))
-  var yend = Math.ceil((py + g.bbox[3]) / size[1] * grid[1])
+  var yend = Math.min(grid[1],Math.ceil((py + g.bbox[3]) / size[1] * grid[1]))
   var sg0 = size[0]/grid[0]
   var sg1 = size[1]/grid[1]
   for (var gy = ystart; gy < yend; gy++) {
@@ -174,20 +178,23 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       rect[2] = (gx+1)/grid[0]*size[0]
       rect[3] = (gy+1)/grid[1]*size[1]
       var gk = gx+gy*grid[0]
-      var iv = this._iv.get(gk) ?? []
       var m = this._matches.get(gk) ?? 0
-      var idc = 0, iuc = 0, odc = 0, ouc = 0
+      var iv = []
+      var ic = 0, oc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
         if (!curveRectIntersect(c,rect,px,py)) {
-          odc += this._countRaycast(rect[2],rect[1],c)
-          ouc += this._countRaycast(rect[2],rect[3],c)
-          iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
+          oc += this._countRaycast(rect[2],rect[3],c)
+          //iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
+          //var ns = support(v0, c, this._epsilon)
+          //if (ns === 2) iv.push(v0[0], v0[1])
+          var ns = support(v0, c, rect, this._epsilon, gx, gy)
+          if (ns === 2) iv.push(v0[0], v0[1])
           continue
         }
+        //iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
+        ic += this._countRaycast(rect[2],rect[3],c)
         if (m >= n) throw new Error(`grid density overflow from n=${n} grid=[${grid[0]},${grid[1]}]`)
-        idc += this._countRaycast(rect[2],rect[1],c)
-        iuc += this._countRaycast(rect[2],rect[3],c)
         var offset = (gk*(n*2+1)+1+m*2)*4
         var index = g.indexes[i]+1
         writeU24(data, offset+0, index)
@@ -195,30 +202,26 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
         writeI16(data, offset+6, Math.round(gy/grid[1]*size[1]-py))
         m++
       }
-
-      var q = ((idc%2>0)<<0) | ((iuc%2>0)<<1) | ((odc%2>0)<<2) | ((ouc%2>0)<<3) | ((m%2===0)<<4)
-
+      var tr = inside(rect[3],iv) ? 1 : 0
+      var q = ((m%2)<<0) + ((ic%2)<<1) + ((oc%2)<<2) + (tr<<3)
       this._matches.set(gk, m)
-      if ((gx === 3 && gy === 2) || (gx === 0 && gy === 0)) {
-        //console.log(gx,gy,idc,iuc,odc,ouc,m,JSON.stringify(iv),rect[1],rect[3])
-        console.log(gx,gy,'q=',q,'idc=',idc,'iuc=',iuc,'odc=',odc,'ouc=',ouc,'m=',m)
-      }
-      //if (q === 8) console.log(gx,gy)
+      //if (gx === 3 && gy === 2) console.log(gx,gy,q,ic,oc,tr,iv)
       var y0 = 0, y1 = 0
-      if (q === 28) {
+
+      if (false && q === 8) {
+      } else if (false && q === 13) {
+        //iv.push(rect[1],rect[3])
+        //mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
         y0 = rect[1]
         y1 = rect[3]
-      } else if (q === 12 || q === 6) {
-        mivxa(iv, iv, vec2set(v0, rect[1], rect[3]))
-        y0 = iv[0] ?? rect[1]
-        y1 = iv[1] ?? rect[1]
-      } else if (q === 10 || q === 13 || q === 8) {
-        iv.push(rect[1],rect[3])
-        mivxa(iv, iv, vec2set(v0, rect[1], rect[3]))
+      } else {
+        //iv.push(rect[1],rect[3])
+        mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
         y0 = iv[0] ?? rect[1]
         y1 = iv[1] ?? rect[1]
       }
-      this._iv.set(gk, iv)
+
+      //this._iv.set(gk, iv)
       var offset = (gx+gy*grid[0])*(n*2+1)*4
       writeU16(data, offset+0, Math.round(y0-rect[1]))
       writeU16(data, offset+2, Math.round(y1-rect[1]))
@@ -229,8 +232,8 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
 
 QBZF.prototype._countRaycast = function (x, y, c) {
   vec2set(v0,x,y)
-  if (Math.abs(c[1]-v0[1]) < this._epsilon) v0[1] += this._epsilon
-  else if (Math.abs(c[5]-v0[1]) < this._epsilon) v0[1] += this._epsilon
+  if (Math.abs(c[1]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? 1 : -1)
+  else if (Math.abs(c[5]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? -1 : 1)
   return countRaycast(v0,c)
 }
 
@@ -291,4 +294,11 @@ function countRaycast(p, c) {
     if (x1 > x) count++
   }
   return count
+}
+
+function inside(x,iv) {
+  for (var i = 0; i < iv.length; i+=2) {
+    if (iv[i+0] <= x && x <= iv[i+1]) return true
+  }
+  return false
 }
