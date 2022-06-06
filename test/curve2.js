@@ -8,12 +8,12 @@ for (var y = 1; y <= 6; y++) {
   }
 }
 
-test('hard-coded output for grid of outputs against curve 1', function (t) {
-  var expected = require('./data/curve1.json')
+test('hard-coded output for grid of outputs against curve 2', function (t) {
+  var expected = require('./data/curve2.json')
   grids.forEach(function (grid) {
     var qbzf = new QBZF(Uint8Array.from([
-      113,98,122,102,49,10,220,11,8,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
-      140,14,216,29,192,12,160,6,179,23,160,6,215,4,215,4,180,9,159,6,231,7,199,1
+      113,98,122,102,49,10,220,11,6,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
+      140,14,216,29,192,12,160,6,211,4,231,7,191,12,159,6
     ]))
     var output = qbzf.write({ text: 'w', size: [1000,1000], grid, n: 4 })
     var key = grid.join(',')
