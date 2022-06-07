@@ -13,6 +13,7 @@ var rect = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
 var r0 = [0,0,0,0], r1 = [0,0,0,0]
 var t0 = [0,0,0,0,0,0]
+var origin = [0,0]
 
 module.exports = QBZF
 
@@ -152,11 +153,13 @@ QBZF.prototype.write = function (opts) {
   if (data.length > length) {
     data = data.subarray(0,length)
   }
-  var x = 0
+  var offset = opts.offset || origin
+  var x = offset[0]
+  var y = offset[1]
   for (var i = 0; i < text.length; i++) {
     // todo: lookahead for multi-codepoint
     var c = text.charCodeAt(i)
-    x += this._stamp(c, x, 0, size, grid, n, data)
+    x += this._stamp(c, x, y, size, grid, n, data)
   }
   return { data, width: grid[0]*(1+n*2), height: grid[1], size, grid, n }
 }
@@ -182,7 +185,7 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       var ic = 0, oc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        if (!curveRectIntersect(c,rect,px,py)) {
+        if (!curveRectIntersect(c,rect,px-g.bbox[0],py-g.bbox[1])) {
           oc += this._countRaycast(rect[2],rect[3],c)
           //iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
           //var ns = support(v0, c, this._epsilon)
@@ -204,7 +207,6 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       var tr = inside(rect[3],iv) ? 1 : 0
       var q = ((m%2)<<0) + ((ic%2)<<1) + ((oc%2)<<2) + (tr<<3)
       this._matches.set(gk, m)
-      //if (gx === 3 && gy === 2) console.log(gx,gy,q,ic,oc,tr,iv)
       var y0 = 0, y1 = 0
 
       if (false && q === 8) {
@@ -213,7 +215,7 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
         //mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
         y0 = rect[1]
         y1 = rect[3]
-      } else {
+      } else if (false) {
         //iv.push(rect[1],rect[3])
         mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
         y0 = iv[0] ?? rect[1]
@@ -251,6 +253,7 @@ function vcmp(a,astart,aend,b,bstart,bend) {
 
 function curveRectIntersect(c, rect, dx, dy) {
   if (c.length === 4) { // line
+    /*
     var c0 = c[0]+dx, c1 = c[1]+dy, c2 = c[2]+dx, c3 = c[3]+dy
     if (rect[0] <= c0 && c0 <= rect[2] && rect[1] <= c1 && c1 <= rect[3]) return true
     vec2set(v1, c0, c1)
@@ -259,6 +262,7 @@ function curveRectIntersect(c, rect, dx, dy) {
     if (lsi(v0, v1, v2, vec2set(v3,rect[0],rect[3]), vec2set(v4,rect[2],rect[3]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[3]), vec2set(v4,rect[2],rect[1]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[1]), vec2set(v4,rect[0],rect[1]))) return true
+    */
   } else if (c.length === 6) { // quadratic bezier
     return bzri(rect, c, dx, dy) // todo: padding for border width
   }
