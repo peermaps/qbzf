@@ -6,6 +6,7 @@ var bzri = require('./lib/bzri.js')
 var mivxa = require('./lib/mivxa.js')
 var raycast = require('./lib/raycast.js')
 var bz = require('./lib/bz.js')
+var bzli = require('./lib/bzli.js')
 var support = require('./lib/support.js')
 
 var tri = [[0,0],[0,0],[0,0]]
@@ -13,6 +14,7 @@ var rect = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
 var r0 = [0,0,0,0], r1 = [0,0,0,0]
 var t0 = [0,0,0,0,0,0]
+var l0 = [0,0,0,0], l1 = [0,0,0,0]
 var origin = [0,0]
 
 module.exports = QBZF
@@ -115,10 +117,10 @@ QBZF.prototype._buildCurves = function () {
       if (c.length === 4) {
         writeI16(data, offset+0, c[0]-g.bbox[0])
         writeI16(data, offset+2, c[1]-g.bbox[1])
-        //writeU16(data, offset+4, c[0]-g.bbox[0])
-        //writeU16(data, offset+6, c[1]-g.bbox[1])
-        writeI16(data, offset+4, Math.round((c[0]+c[2])*0.5)-g.bbox[0])
-        writeI16(data, offset+6, Math.round((c[1]+c[3])*0.5)-g.bbox[1])
+        writeU16(data, offset+4, c[0]-g.bbox[0])
+        writeU16(data, offset+6, c[1]-g.bbox[1])
+        //writeI16(data, offset+4, Math.round((c[0]+c[2])*0.5)-g.bbox[0])
+        //writeI16(data, offset+6, Math.round((c[1]+c[3])*0.5)-g.bbox[1])
         writeI16(data, offset+8, c[2]-g.bbox[0])
         writeI16(data, offset+10, c[3]-g.bbox[1])
       } else if (c.length === 6) {
@@ -181,21 +183,56 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       rect[3] = (gy+1)/grid[1]*size[1]
       var gk = gx+gy*grid[0]
       var m = this._matches.get(gk) ?? 0
+      var crossings = 0
+      for (var i = 0; i < g.curves.length; i++) {
+        var c = g.curves[i]
+        crossings += this._countRaycast(rect[2],rect[3],c)
+      }
       var iv = []
-      var ic = 0, oc = 0
+      var rc = 0, tc = 0
+      for (var i = 0; i < g.curves.length; i++) {
+        var c = g.curves[i]
+        var r0 = rect[0] - px + g.bbox[0]
+        var r1 = rect[1] - py + g.bbox[1]
+        var r2 = rect[2] - px + g.bbox[0]
+        var r3 = rect[3] - py + g.bbox[1]
+        if (c.length === 4) {
+          vec2set(v1,r2,r1)
+          vec2set(v2,r2,r3)
+          vec2set(v3,c[0],c[1])
+          vec2set(v4,c[2],c[3])
+          if (lsi(v0,v1,v2,v3,v4)) {
+            if (gx === 2 && gy === 3) console.log(crossings)
+            iv.push(v0[1]+py-g.bbox[1], rect[1])
+            rc++
+          }
+          vec2set(v1,r0,r3)
+          vec2set(v2,r2,r3)
+          if (lsi(v0,v1,v2,v3,v4)) {
+            tc++
+          }
+        } else {
+          vec4set(l0, r2, r1, r2, r3)
+          var ln = bzli(l1,c,l0)
+          if (ln > 0) {
+            iv.push(l1[1]+py-g.bbox[1], rect[3])
+            rc++
+          }
+          vec4set(l0, r0, r3, r2, r3)
+          tc += bzli(l1,c,l0)
+        }
+      }
+      //if (crossings%2 === 1 && rc%2 === 1) {
+      if (crossings%2 !== tc%2) {
+        //iv.push(rect[1],rect[3])
+      }
+      if (gx === 2 && gy === 2) console.log(crossings,rc,tc)
+
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
         if (!curveRectIntersect(c,rect,px-g.bbox[0],py-g.bbox[1])) {
-          oc += this._countRaycast(rect[2],rect[3],c)
-          //iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
-          //var ns = support(v0, c, this._epsilon)
-          //if (ns === 2) iv.push(v0[0], v0[1])
-          var ns = support(v0, c, rect, this._epsilon, gx, gy)
-          if (ns === 2) iv.push(v0[0], v0[1])
           continue
         }
-        //iv.push(Math.min(c[1],c[5]), Math.max(c[1],c[5]))
-        ic += this._countRaycast(rect[2],rect[3],c)
         if (m >= n) throw new Error(`grid density overflow from n=${n} grid=[${grid[0]},${grid[1]}]`)
         var offset = (gk*(n*2+1)+1+m*2)*4
         var index = g.indexes[i]+1
@@ -204,19 +241,9 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
         writeI16(data, offset+6, Math.round(gy/grid[1]*size[1]-py))
         m++
       }
-      var tr = inside(rect[3],iv) ? 1 : 0
-      var q = ((m%2)<<0) + ((ic%2)<<1) + ((oc%2)<<2) + (tr<<3)
       this._matches.set(gk, m)
       var y0 = 0, y1 = 0
-
-      if (false && q === 8) {
-      } else if (false && q === 13) {
-        //iv.push(rect[1],rect[3])
-        //mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
-        y0 = rect[1]
-        y1 = rect[3]
-      } else if (false) {
-        //iv.push(rect[1],rect[3])
+      if (m > 0) {
         mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
         y0 = iv[0] ?? rect[1]
         y1 = iv[1] ?? rect[1]
@@ -253,7 +280,6 @@ function vcmp(a,astart,aend,b,bstart,bend) {
 
 function curveRectIntersect(c, rect, dx, dy) {
   if (c.length === 4) { // line
-    /*
     var c0 = c[0]+dx, c1 = c[1]+dy, c2 = c[2]+dx, c3 = c[3]+dy
     if (rect[0] <= c0 && c0 <= rect[2] && rect[1] <= c1 && c1 <= rect[3]) return true
     vec2set(v1, c0, c1)
@@ -262,7 +288,6 @@ function curveRectIntersect(c, rect, dx, dy) {
     if (lsi(v0, v1, v2, vec2set(v3,rect[0],rect[3]), vec2set(v4,rect[2],rect[3]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[3]), vec2set(v4,rect[2],rect[1]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[1]), vec2set(v4,rect[0],rect[1]))) return true
-    */
   } else if (c.length === 6) { // quadratic bezier
     return bzri(rect, c, dx, dy) // todo: padding for border width
   }
@@ -286,22 +311,32 @@ function writeU24(out, offset, x) {
 
 function countRaycast(p, c) {
   var x = p[0], y = p[1]
-  var n = raycast(v0, y, c[1], c[3], c[5])
   var count = 0
-  if (n > 0) {
-    var x0 = bz(c[0],c[2],c[4],v0[0])
-    if (x0 > x) count++
-  }
-  if (n > 1) {
-    var x1 = bz(c[0],c[2],c[4],v0[1])
-    if (x1 > x) count++
+  if (c.length === 4) {
+    var A = c[3]-c[1]
+    if (Math.abs(A) < 1e-8) return 0
+    var B = c[0]-c[2]
+    var C = c[1]*c[2]-c[0]*c[3]
+    var cx = -(B*y+C)/A
+    return cx > x
+  } else {
+    var n = raycast(v0, y, c[1], c[3], c[5])
+    if (n > 0) {
+      var x0 = bz(c[0],c[2],c[4],v0[0])
+      if (x0 > x) count++
+    }
+    if (n > 1) {
+      var x1 = bz(c[0],c[2],c[4],v0[1])
+      if (x1 > x) count++
+    }
   }
   return count
 }
 
-function inside(x,iv) {
-  for (var i = 0; i < iv.length; i+=2) {
-    if (iv[i+0] <= x && x <= iv[i+1]) return true
-  }
-  return false
+function vec4set(out, a, b, c, d) {
+  out[0] = a
+  out[1] = b
+  out[2] = c
+  out[3] = d
+  return out
 }
