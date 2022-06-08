@@ -186,7 +186,7 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       var crossings = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        crossings += this._countRaycast(rect[2],rect[3],c)
+        crossings += this._countRaycast(rect[2],rect[3],c,gx,gy)
       }
       var iv = []
       var rc = 0, tc = 0
@@ -202,7 +202,6 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
           vec2set(v3,c[0],c[1])
           vec2set(v4,c[2],c[3])
           if (lsi(v0,v1,v2,v3,v4)) {
-            if (gx === 2 && gy === 3) console.log(crossings)
             iv.push(v0[1]+py-g.bbox[1], rect[1])
             rc++
           }
@@ -222,9 +221,9 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
           tc += bzli(l1,c,l0)
         }
       }
-      //if (crossings%2 === 1 && rc%2 === 1) {
-      if (crossings%2 !== tc%2) {
-        //iv.push(rect[1],rect[3])
+      if (crossings%2 === 1 && rc%2 === 1) {
+      //if (tc%2 !== rc%2) {
+        iv.push(rect[1],rect[3])
       }
       if (gx === 2 && gy === 2) console.log(crossings,rc,tc)
 
@@ -258,11 +257,11 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
   return g.advanceWidth - g.leftSideBearing
 }
 
-QBZF.prototype._countRaycast = function (x, y, c) {
+QBZF.prototype._countRaycast = function (x, y, c, gx, gy) {
   vec2set(v0,x,y)
   if (Math.abs(c[1]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? 1 : -1)
   else if (Math.abs(c[5]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? -1 : 1)
-  return countRaycast(v0,c)
+  return countRaycast(v0, c, gx, gy, this._epsilon)
 }
 
 function decode(src, offset) {
@@ -309,16 +308,38 @@ function writeU24(out, offset, x) {
   out[offset+2] = x % 256
 }
 
-function countRaycast(p, c) {
+function countRaycast(p, c, gx, gy, epsilon) {
   var x = p[0], y = p[1]
   var count = 0
   if (c.length === 4) {
+    // m = (c[1]-c[3])/(c[0]-c[2])
+    // y = m*x + b
+    // b = y - m*x
+    // b = c[1] - (c[1]-c[3])/(c[0]-c[2])*c[0]
+    // y = (c[1]-c[3])/(c[0]-c[2])*x + c[1] - (c[1]-c[3])/(c[0]-c[2])*c[0]
+    // y - (c[1]-c[3])/(c[0]-c[2])*x - c[1] + (c[1]-c[3])/(c[0]-c[2])*c[0] = 0
+    // y*(c[0]-c[2]) - (c[1]-c[3])*x - c[1]*(c[0]-c[2]) + (c[1]-c[3])*c[0] = 0
+    // y*(c[0]-c[2]) - (c[1]-c[3])*x - c[1]*c[0] + c[1]*c[2] + c[0]*c[1]-c[0]*c[3] = 0
+    // y*(c[0]-c[2]) - (c[1]-c[3])*x + c[1]*c[2] - c[0]*c[3] = 0
+    // A = c[3]-c[1]
+    // B = c[0]-c[2]
+    // C = c[1]*c[2] - c[0]*c[3]
+    // A*x + B*y + C = 0
+    // x = -(C + B*y) / A
+    // y = -(C + A*x)/B
     var A = c[3]-c[1]
-    if (Math.abs(A) < 1e-8) return 0
+    if (Math.abs(A) < epsilon) return 0
+    var min1 = Math.min(c[1],c[3]), max1 = Math.max(c[1],c[3])
     var B = c[0]-c[2]
+    if (Math.abs(B) < epsilon) return min1-epsilon <= y && y <= max1+epsilon
     var C = c[1]*c[2]-c[0]*c[3]
     var cx = -(B*y+C)/A
+    var cy = -(C+A*x)/B
+    var min0 = Math.min(c[0],c[2]), max0 = Math.max(c[0],c[2])
     return cx > x
+      && min0-epsilon <= cx && cx <= max0+epsilon
+      && min1-epsilon <= cy && cy <= max1+epsilon
+      ? 1 : 0
   } else {
     var n = raycast(v0, y, c[1], c[3], c[5])
     if (n > 0) {
