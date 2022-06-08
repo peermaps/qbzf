@@ -7,7 +7,6 @@ var mivxa = require('./lib/mivxa.js')
 var raycast = require('./lib/raycast.js')
 var bz = require('./lib/bz.js')
 var bzli = require('./lib/bzli.js')
-var support = require('./lib/support.js')
 
 var tri = [[0,0],[0,0],[0,0]]
 var rect = [0,0,0,0]
@@ -260,9 +259,17 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       var y0 = 0, y1 = 0
       if (m > 0) {
         mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
-        if (iv.length > 2) console.log('TODO',gx,gy,iv)
-        y0 = iv[0] ?? rect[1]
-        y1 = iv[1] ?? rect[1]
+        if (iv.length === 2) {
+          y0 = iv[0] ?? rect[1]
+          y1 = iv[1] ?? rect[1]
+        } else if (iv.length === 4) {
+          iv.push(rect[1], rect[3])
+          mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
+          y1 = iv[0] ?? rect[1]
+          y0 = iv[1] ?? rect[1]
+        } else if (iv.length > 0) {
+          console.log('TODO',gx,gy,iv)
+        }
       }
 
       //this._iv.set(gk, iv)

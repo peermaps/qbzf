@@ -9,20 +9,23 @@ window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
 ;(async function () {
-  //var qbzf = new QBZF(new Uint8Array(await (await fetch('/test16')).arrayBuffer()))
+  var qbzf = new QBZF(new Uint8Array(await (await fetch('/test-e')).arrayBuffer()))
+  /*
   var qbzf = new QBZF(Uint8Array.from([
-    113,98,122,102,49,10,220,11,8,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
-    140,14,216,29,192,12,160,6,179,23,160,6,215,4,215,4,180,9,159,6,231,7,199,1
-    //113,98,122,102,49,10,220,11,6,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
-    //140,14,216,29,192,12,160,6,211,4,231,7,191,12,159,6
+    //113,98,122,102,49,10,220,11,8,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
+    //140,14,216,29,192,12,160,6,179,23,160,6,215,4,215,4,180,9,159,6,231,7,199,1
+    113,98,122,102,49,10,220,11,6,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
+    140,14,216,29,192,12,160,6,211,4,231,7,191,12,159,6
   ]))
+  */
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
   data.grid = qbzf.write({
-    text: 'w',
-    size: [1000,1000],
+    text: 'e',
+    size: [1200,1300],
+    offset: [0,0],
     grid,
-    n: 4,
+    n: 6,
   })
   data.grid.texture = regl.texture(data.grid)
   data.unitsPerEm = qbzf.unitsPerEm
@@ -70,15 +73,22 @@ function build(n) {
         vec2 fuv = floor(uv*gridGrid)/gridGrid;
         vec2 rbuv = fuv + vec2(1)/gridGrid;
         vec2 p = (uv-fuv)*gridSize;
-        //vec4 bounds = vec4(fuv*gridSize, rbuv*gridSize);
+        vec4 bounds = vec4(fuv*gridSize, rbuv*gridSize);
 
         vec2 i0 = fuv + vec2(0.5/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
         vec4 g0 = texture2D(gridTex, i0);
         vec2 ra = vec2(parseU16BE(g0.xy), parseU16BE(g0.zw));
-        x += min(
-          min(step(ra.x,p.y),step(p.y,ra.y)),
-          step(1e-8,abs(ra.x-ra.y))
-        );
+        if (ra.x > ra.y) {
+          x += 1.0 - min(
+            min(step(ra.y,p.y),step(p.y,ra.x)),
+            step(1e-8,abs(ra.y-ra.x))
+          );
+        } else {
+          x += min(
+            min(step(ra.x,p.y),step(p.y,ra.y)),
+            step(1e-8,abs(ra.x-ra.y))
+          );
+        }
         //x += raycast(p, vec2(rbuv.x,fuv.y), vec2(rbuv.x,(fuv.y+rbuv.y)*0.5), rbuv);
 
         float match = 0.0;
@@ -94,10 +104,15 @@ function build(n) {
           vec2 b0 = readBz(curveTex, curveSize, index-1.0, 0.0);
           vec2 b1 = readBz(curveTex, curveSize, index-1.0, 1.0);
           vec2 b2 = readBz(curveTex, curveSize, index-1.0, 2.0);
-          x += raycast(p+d, b0, b1, b2);
+          x += raycast(p+d, b0, b1, b2, bounds);
         }
         //if (match < 0.5) discard;
-        float b = step(0.95,(uv.x-fuv.x)*gridGrid.x)*min(step(ra.x,p.y),step(p.y,ra.y));
+        float b = step(0.95,(uv.x-fuv.x)*gridGrid.x)
+          * mix(
+            min(step(ra.x,p.y),step(p.y,ra.y)),
+            (1.0-min(step(ra.y,p.y),step(p.y,ra.x))),
+            step(ra.y,ra.x)
+          );
         float f = 1.0 - max(
           step(0.99,(uv.y-fuv.y)*gridGrid.y),
           step(0.99,(uv.x-fuv.x)*gridGrid.x)
