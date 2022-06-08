@@ -12,7 +12,6 @@ var support = require('./lib/support.js')
 var tri = [[0,0],[0,0],[0,0]]
 var rect = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
-var r0 = [0,0,0,0], r1 = [0,0,0,0]
 var t0 = [0,0,0,0,0,0]
 var l0 = [0,0,0,0], l1 = [0,0,0,0]
 var origin = [0,0]
@@ -181,51 +180,68 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       rect[1] = gy/grid[1]*size[1]
       rect[2] = (gx+1)/grid[0]*size[0]
       rect[3] = (gy+1)/grid[1]*size[1]
+      var r0 = rect[0] - px + g.bbox[0]
+      var r1 = rect[1] - py + g.bbox[1]
+      var r2 = rect[2] - px + g.bbox[0]
+      var r3 = rect[3] - py + g.bbox[1]
       var gk = gx+gy*grid[0]
       var m = this._matches.get(gk) ?? 0
-      var crossings = 0
+      var ulc = 0, urc = 0, llc = 0, lrc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        crossings += this._countRaycast(rect[2],rect[3],c,gx,gy)
+        ulc += this._countRaycast(rect[0],rect[3],c,gx,gy)
+        llc += this._countRaycast(rect[0],rect[1],c,gx,gy)
+        urc += this._countRaycast(rect[2],rect[3],c,gx,gy)
+        lrc += this._countRaycast(rect[2],rect[1],c,gx,gy)
       }
       var iv = []
-      var rc = 0, tc = 0
+      var rc = 0, lc = 0, tc = 0, bc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        var r0 = rect[0] - px + g.bbox[0]
-        var r1 = rect[1] - py + g.bbox[1]
-        var r2 = rect[2] - px + g.bbox[0]
-        var r3 = rect[3] - py + g.bbox[1]
         if (c.length === 4) {
-          vec2set(v1,r2,r1)
-          vec2set(v2,r2,r3)
-          vec2set(v3,c[0],c[1])
-          vec2set(v4,c[2],c[3])
+          vec2set(v1,c[0],c[1])
+          vec2set(v2,c[2],c[3])
+          vec2set(v3,r2,r1)
+          vec2set(v4,r2,r3)
           if (lsi(v0,v1,v2,v3,v4)) {
             iv.push(v0[1]+py-g.bbox[1], rect[1])
             rc++
           }
-          vec2set(v1,r0,r3)
-          vec2set(v2,r2,r3)
+          vec2set(v3,r0,r1)
+          vec2set(v4,r0,r3)
+          if (lsi(v0,v1,v2,v3,v4)) {
+            lc++
+          }
+          vec2set(v3,r0,r3)
+          vec2set(v4,r2,r3)
           if (lsi(v0,v1,v2,v3,v4)) {
             tc++
+          }
+          vec2set(v3,r0,r1)
+          vec2set(v4,r2,r1)
+          if (lsi(v0,v1,v2,v3,v4)) {
+            bc++
           }
         } else {
           vec4set(l0, r2, r1, r2, r3)
           var ln = bzli(l1,c,l0)
           if (ln > 0) {
-            iv.push(l1[1]+py-g.bbox[1], rect[3])
+            iv.push(l1[1]+py-g.bbox[1], rect[1])
             rc++
           }
+          vec4set(l0, r0, r1, r0, r3)
+          lc += bzli(l1,c,l0)
           vec4set(l0, r0, r3, r2, r3)
           tc += bzli(l1,c,l0)
+          vec4set(l0, r0, r1, r2, r1)
+          bc += bzli(l1,c,l0)
         }
       }
-      if (crossings%2 === 1 && rc%2 === 1) {
-      //if (tc%2 !== rc%2) {
+      var q = ((ulc%2)<<0) + ((llc%2)<<1) + ((urc%2)<<2) + ((lrc%2)<<3)
+        + ((rc%2)<<4) + ((lc%2)<<5) + ((tc%2)<<6) + ((bc%2)<<7)
+      if (q === 84 || q === 204 || q === 151 || q === 53 || q === 246 || q === 110) {
         iv.push(rect[1],rect[3])
       }
-      if (gx === 2 && gy === 2) console.log(crossings,rc,tc)
 
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
@@ -244,6 +260,7 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       var y0 = 0, y1 = 0
       if (m > 0) {
         mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
+        if (iv.length > 2) console.log('TODO',gx,gy,iv)
         y0 = iv[0] ?? rect[1]
         y1 = iv[1] ?? rect[1]
       }
