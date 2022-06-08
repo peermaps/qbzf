@@ -13,9 +13,10 @@ var argv = minimist(process.argv.slice(2), {
     v: 'version',
     i: 'infile',
     o: 'outfile',
-    c: ['code','codes']
+    c: ['code','codes'],
+    l: 'ls',
   },
-  boolean: [ 'help', 'version' ],
+  boolean: [ 'help', 'version', 'ls' ],
   default: { outfile: '-' },
 })
 
@@ -32,8 +33,21 @@ var outstream = argv.outfile === '-' ? process.stdout : fs.createWriteStream(arg
 var isHeader = true
 
 var codes = argv.code
-  ? [].concat(argv.code).flatMap(c => c.split(',').map(Number))
+  ? [].concat(argv.code).flatMap(c => String(c).split(',').map(Number))
   : Object.keys(font.glyphs.glyphs)
+
+if (argv.ls) {
+  return pump(from(function (size, next) {
+    if (index >= codes.length) return next(null, null)
+    while (true) {
+      if (index >= codes.length) break
+      var g = font.glyphs.glyphs[codes[index++]]
+      if (g.unicodes.length === 0) continue
+      return next(null, JSON.stringify(g)+'\n')
+    }
+    next(null, null)
+  }), process.stdout, onerror)
+}
 
 pump(from(function (size, next) {
   if (isHeader) {
@@ -66,7 +80,7 @@ function usage() {
 }
 
 function onerror(err) {
-  if (err) {
+  if (err && err.code !== 'EPIPE') {
     console.error(err)
     process.exit(1)
   }
