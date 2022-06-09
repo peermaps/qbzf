@@ -9,18 +9,25 @@ window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
 ;(async function () {
+  //var qbzf = new QBZF(new Uint8Array(await (await fetch('/test-e')).arrayBuffer()))
+  var qbzf = new QBZF(Uint8Array.from([
+    113,98,122,102,49,10,128,16,60,101,216,19,226,1,226,1,57,254,17,246,17,250,53,188,9,2,0,2,179,1,209,39,0,76,251,2,228,1,195,4,238,4,197,1,188,4,197,1,2,0,128,5,0,154,3,52,220,4,52,140,3,156,1,2,0,2,219,2,205,4,83,149,3,127,235,4,43,165,3,43,2,0,195,12,0,209,6,184,2,163,7,184,2,183,2,204,6,2,0,4,166,4,168,2,232,6,130,7,196,2,162,6,196,2,2,0,208,10,0,202,5,163,2,156,6,161,2,136,2,149,6,175,39,106,226,30,2,7,174,2,169,1,226,3,231,3,180,1,179,3,180,1,2,0,151,7,0,237,3,173,1,163,4,173,1,211,1,233,3,2,0
+    //113,98,122,102,49,10,220,11,8,119,208,15,0,0,0,136,14,224,18,216,4,200,1,140,14,216,29,192,12,160,6,179,23,160,6,215,4,215,4,180,9,159,6,231,7,199,1
+  ]))
+  /*
   var qbzf = new QBZF(Uint8Array.from([
     //113,98,122,102,49,10,220,11,8,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
     //140,14,216,29,192,12,160,6,179,23,160,6,215,4,215,4,180,9,159,6,231,7,199,1
     113,98,122,102,49,10,220,11,6,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
     140,14,216,29,192,12,160,6,211,4,231,7,191,12,159,6
   ]))
+  */
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
   data.grid = qbzf.write({
     text: 'e',
     size: [1200,1300],
-    offset: [0,100],
+    offset: [50,0],
     grid,
     n: 6,
   })
@@ -59,7 +66,7 @@ function build(n) {
       vec2 readBz(sampler2D texture, vec2 size, float index, float i) {
         vec4 c = texture2D(texture, vec2(
           (mod(index,size.x)*3.0+i+0.5)/(3.0*size.x),
-          floor(index/size.x) / (size.y-1.0)
+          (floor(index/size.x)+0.5) / size.y
         ));
         return vec2(parseI16BE(c.xy),parseI16BE(c.zw));
       }
@@ -75,7 +82,7 @@ function build(n) {
         vec2 i0 = fuv + vec2(0.5/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
         vec4 g0 = texture2D(gridTex, i0);
         vec2 ra = vec2(parseU16BE(g0.xy), parseU16BE(g0.zw));
-        x += mix(
+        float rax = mix(
           1.0 - min(
             min(step(ra.y,p.y),step(p.y,ra.x)),
             step(1e-8,abs(ra.y-ra.x))
@@ -86,7 +93,7 @@ function build(n) {
           ),
           step(ra.x, ra.y)
         );
-        //x += raycast(p, vec2(rbuv.x,fuv.y), vec2(rbuv.x,(fuv.y+rbuv.y)*0.5), rbuv);
+        x += rax;
 
         float match = 0.0;
         for (int i = 0; i < ${n}; i++) {
@@ -104,12 +111,7 @@ function build(n) {
           x += raycast(p+d, b0, b1, b2, bounds);
         }
         //if (match < 0.5) discard;
-        float b = step(0.95,(uv.x-fuv.x)*gridGrid.x)
-          * mix(
-            min(step(ra.x,p.y),step(p.y,ra.y)),
-            (1.0-min(step(ra.y,p.y),step(p.y,ra.x))),
-            step(ra.y,ra.x)
-          );
+        float b = step(0.95,(uv.x-fuv.x)*gridGrid.x) * rax;
         float f = 1.0 - max(
           step(0.99,(uv.y-fuv.y)*gridGrid.y),
           step(0.99,(uv.x-fuv.x)*gridGrid.x)
