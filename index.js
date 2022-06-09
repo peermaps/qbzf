@@ -185,16 +185,13 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       var r3 = rect[3] - py + g.bbox[1]
       var gk = gx+gy*grid[0]
       var m = this._matches.get(gk) ?? 0
-      var ulc = 0, urc = 0, llc = 0, lrc = 0
+
+      var urc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        ulc += this._countRaycast(rect[0],rect[3],c,gx,gy)
-        llc += this._countRaycast(rect[0],rect[1],c,gx,gy)
-        urc += this._countRaycast(rect[2],rect[3],c,gx,gy)
-        lrc += this._countRaycast(rect[2],rect[1],c,gx,gy)
+        urc += this._countRaycast(r2,r3,c,gx,gy)
       }
-      var iv = []
-      var rc = 0, lc = 0, tc = 0, bc = 0
+      var rc = []
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
         if (c.length === 4) {
@@ -203,43 +200,39 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
           vec2set(v3,r2,r1)
           vec2set(v4,r2,r3)
           if (lsi(v0,v1,v2,v3,v4)) {
-            iv.push(v0[1]+py-g.bbox[1], rect[1])
-            rc++
-          }
-          vec2set(v3,r0,r1)
-          vec2set(v4,r0,r3)
-          if (lsi(v0,v1,v2,v3,v4)) {
-            lc++
-          }
-          vec2set(v3,r0,r3)
-          vec2set(v4,r2,r3)
-          if (lsi(v0,v1,v2,v3,v4)) {
-            tc++
-          }
-          vec2set(v3,r0,r1)
-          vec2set(v4,r2,r1)
-          if (lsi(v0,v1,v2,v3,v4)) {
-            bc++
+            rc.push(v0[1]+py-g.bbox[1])
           }
         } else {
           vec4set(l0, r2, r1, r2, r3)
           var ln = bzli(l1,c,l0)
           if (ln > 0) {
-            iv.push(l1[1]+py-g.bbox[1], rect[1])
-            rc++
+            rc.push(l1[1]+py-g.bbox[1])
           }
-          vec4set(l0, r0, r1, r0, r3)
-          lc += bzli(l1,c,l0)
-          vec4set(l0, r0, r3, r2, r3)
-          tc += bzli(l1,c,l0)
-          vec4set(l0, r0, r1, r2, r1)
-          bc += bzli(l1,c,l0)
         }
       }
-      var q = ((ulc%2)<<0) + ((llc%2)<<1) + ((urc%2)<<2) + ((lrc%2)<<3)
-        + ((rc%2)<<4) + ((lc%2)<<5) + ((tc%2)<<6) + ((bc%2)<<7)
-      if (q === 84 || q === 204 || q === 151 || q === 53 || q === 246 || q === 110) {
+      rc.sort(cmp)
+      var iv = []
+      var q = 0
+      if (urc % 2 === 0 && rc.length === 0) {
+        q = 1
+      } else if (urc % 2 === 1 && rc.length === 0) {
+        q = 2
         iv.push(rect[1],rect[3])
+      } else if (urc % 2 === 0 && rc.length % 2 === 0) {
+        q = 3
+        iv = iv.concat(rc)
+      } else if (urc % 2 === 0 && rc.length % 2 === 1) {
+        q = 4
+        iv.push(rect[1])
+        iv = iv.concat(rc)
+      } else if (urc % 2 === 1 && rc.length % 2 === 0) {
+        q = 5
+        iv = iv.concat(rc)
+        iv.push(rect[1],rect[3])
+      } else if (urc % 2 === 1 && rc.length % 2 === 1) {
+        q = 6
+        iv = iv.concat(rc)
+        iv.push(rect[3])
       }
 
       for (var i = 0; i < g.curves.length; i++) {
@@ -257,7 +250,7 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       }
       this._matches.set(gk, m)
       var y0 = 0, y1 = 0
-      if (m > 0) {
+      if (iv.length > 0) {
         mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
         if (iv.length === 2) {
           y0 = iv[0] ?? rect[1]
@@ -355,15 +348,20 @@ function countRaycast(p, c, gx, gy, epsilon) {
     if (Math.abs(A) < epsilon) return 0
     var min1 = Math.min(c[1],c[3]), max1 = Math.max(c[1],c[3])
     var B = c[0]-c[2]
-    if (Math.abs(B) < epsilon) return min1-epsilon <= y && y <= max1+epsilon
-    var C = c[1]*c[2]-c[0]*c[3]
-    var cx = -(B*y+C)/A
-    var cy = -(C+A*x)/B
-    var min0 = Math.min(c[0],c[2]), max0 = Math.max(c[0],c[2])
-    return cx > x
-      && min0-epsilon <= cx && cx <= max0+epsilon
-      && min1-epsilon <= cy && cy <= max1+epsilon
-      ? 1 : 0
+    if (Math.abs(B) < epsilon) {
+      var ix = c[0] > x && min1-epsilon <= y && y <= max1+epsilon ? 1 : 0
+      if (ix) count++
+    } else {
+      var C = c[1]*c[2]-c[0]*c[3]
+      var cx = -(B*y+C)/A
+      var cy = -(C+A*x)/B
+      var min0 = Math.min(c[0],c[2]), max0 = Math.max(c[0],c[2])
+      var ix = cx > x
+        && min0-epsilon <= cx && cx <= max0+epsilon
+        && min1-epsilon <= cy && cy <= max1+epsilon
+        ? 1 : 0
+      if (ix) count++
+    }
   } else {
     var n = raycast(v0, y, c[1], c[3], c[5])
     if (n > 0) {
@@ -385,3 +383,5 @@ function vec4set(out, a, b, c, d) {
   out[3] = d
   return out
 }
+
+function cmp(a,b) { return a < b ? -1 : +1 }
