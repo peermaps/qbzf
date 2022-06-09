@@ -199,14 +199,22 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
           vec2set(v2,c[2],c[3])
           vec2set(v3,r2,r1)
           vec2set(v4,r2,r3)
+          if (Math.abs(r2-c[0]) < this._epsilon || Math.abs(r2-c[2]) < this._epsilon) {
+            v3[0] += this._epsilon
+            v4[0] += this._epsilon
+          }
           if (lsi(v0,v1,v2,v3,v4)) {
             rc.push(v0[1]+py-g.bbox[1])
           }
         } else {
           vec4set(l0, r2, r1, r2, r3)
-          var ln = bzli(l1,c,l0)
-          if (ln > 0) {
-            rc.push(l1[1]+py-g.bbox[1])
+          if (Math.abs(r2-c[0]) < this._epsilon || Math.abs(r2-c[4]) < this._epsilon) {
+            l0[0] += this._epsilon
+            l0[2] += this._epsilon
+          }
+          var ln = bzli(l1,c,l0,1e-8,gx,gy)
+          for (var j = 0; j < ln; j++) {
+            rc.push(l1[j*2+1]+py-g.bbox[1])
           }
         }
       }
