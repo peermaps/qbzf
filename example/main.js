@@ -4,26 +4,23 @@ var QBZF = require('../')
 
 var draw = null
 var q = new URLSearchParams(location.search)
-var grid = (q.get('grid') || '5,5').split(',').map(Number)
+var grid = (q.get('grid') || '6,6').split(',').map(Number)
 window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
 ;(async function () {
-  var qbzf = new QBZF(new Uint8Array(await (await fetch('/test-e')).arrayBuffer()))
-  /*
   var qbzf = new QBZF(Uint8Array.from([
     //113,98,122,102,49,10,220,11,8,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
     //140,14,216,29,192,12,160,6,179,23,160,6,215,4,215,4,180,9,159,6,231,7,199,1
     113,98,122,102,49,10,220,11,6,119,208,15,0,0,0,136,14,224,18,216,4,200,1,
     140,14,216,29,192,12,160,6,211,4,231,7,191,12,159,6
   ]))
-  */
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
   data.grid = qbzf.write({
     text: 'e',
     size: [1200,1300],
-    offset: [0,0],
+    offset: [0,100],
     grid,
     n: 6,
   })
@@ -54,7 +51,7 @@ function build(n) {
       }
       float parseI16BE(vec2 v) {
         float a = 65280.0, b = 32640.0, s = step(b,v.x*a);
-        return (mod(v.x*a,b) + v.y*255.0) * mix(1.0,-1.0,s) - mix(0.0,128.0,s);
+        return (mod(v.x*a,b) + v.y*255.0) * mix(1.0,-1.0,s) + mix(0.0,128.0,s);
       }
       float parseU24BE(vec3 v) {
         return v.x*16711680.0 + v.y*65280.0 + v.z*255.0;
@@ -78,17 +75,17 @@ function build(n) {
         vec2 i0 = fuv + vec2(0.5/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
         vec4 g0 = texture2D(gridTex, i0);
         vec2 ra = vec2(parseU16BE(g0.xy), parseU16BE(g0.zw));
-        if (ra.x > ra.y) {
-          x += 1.0 - min(
+        x += mix(
+          1.0 - min(
             min(step(ra.y,p.y),step(p.y,ra.x)),
             step(1e-8,abs(ra.y-ra.x))
-          );
-        } else {
-          x += min(
+          ),
+          min(
             min(step(ra.x,p.y),step(p.y,ra.y)),
             step(1e-8,abs(ra.x-ra.y))
-          );
-        }
+          ),
+          step(ra.x, ra.y)
+        );
         //x += raycast(p, vec2(rbuv.x,fuv.y), vec2(rbuv.x,(fuv.y+rbuv.y)*0.5), rbuv);
 
         float match = 0.0;
