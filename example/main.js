@@ -108,7 +108,8 @@ function build(n) {
           vec2 b0 = readBz(curveTex, curveSize, index-1.0, 0.0);
           vec2 b1 = readBz(curveTex, curveSize, index-1.0, 1.0);
           vec2 b2 = readBz(curveTex, curveSize, index-1.0, 2.0);
-          x += raycast(p+d, b0, b1, b2, bounds);
+          vec2 fd = d-fuv*gridSize;
+          x += raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
         }
         //if (match < 0.5) discard;
         float b = step(0.95,(uv.x-fuv.x)*gridGrid.x) * rax;
