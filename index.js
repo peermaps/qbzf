@@ -11,7 +11,6 @@ var bzli = require('./lib/bzli.js')
 var tri = [[0,0],[0,0],[0,0]]
 var rect = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
-var t0 = [0,0,0,0,0,0]
 var l0 = [0,0,0,0], l1 = [0,0,0,0]
 var origin = [0,0]
 
@@ -25,10 +24,11 @@ function QBZF(src, opts) {
   this._iv = new Map
   this._offsets = new Map
   this._index = 0
+  this._ivPrecision = opts.ivPrecision ?? 8
   this.unitsPerEm = 0
+  this._epsilon = opts.epsilon ?? 1e-8
   this._parse(src)
   this.curves = this._buildCurves()
-  this._epsilon = opts.epsilon ?? 1e-8
 }
 
 QBZF.prototype._parse = function (src) {
@@ -79,7 +79,9 @@ QBZF.prototype._parse = function (src) {
         px += cx
         py += cy
       } else if (cxr === 1) { // L
-        curves.push([ px, py, cx+px, cy+py ])
+        var c0 = px, c1 = py, c2 = cx+px, c3 = cy+py
+        if (Math.abs(c0-c2) < this._epsilon && Math.abs(c1-c3) < this._epsilon) continue
+        curves.push([c0,c1,c2,c3])
         indexes.push(this._index++)
         px += cx
         py += cy
@@ -189,7 +191,7 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       var urc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        urc += this._countRaycast(r2,r3,c,gx,gy)
+        urc += this._countRaycast(r2,r3,c)
       }
       var rc = []
       for (var i = 0; i < g.curves.length; i++) {
@@ -212,7 +214,7 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
             l0[0] += this._epsilon
             l0[2] += this._epsilon
           }
-          var ln = bzli(l1,c,l0,1e-8,gx,gy)
+          var ln = bzli(l1,c,l0,1e-8)
           for (var j = 0; j < ln; j++) {
             rc.push(l1[j*2+1]+py-g.bbox[1])
           }
@@ -275,18 +277,18 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
 
       //this._iv.set(gk, iv)
       var offset = (gx+gy*grid[0])*(n*2+1)*4
-      writeU16(data, offset+0, Math.round(y0-rect[1]))
-      writeU16(data, offset+2, Math.round(y1-rect[1]))
+      writeU16(data, offset+0, Math.round((y0-rect[1])*this._ivPrecision))
+      writeU16(data, offset+2, Math.round((y1-rect[1])*this._ivPrecision))
     }
   }
   return g.advanceWidth - g.leftSideBearing
 }
 
-QBZF.prototype._countRaycast = function (x, y, c, gx, gy) {
+QBZF.prototype._countRaycast = function (x, y, c) {
   vec2set(v0,x,y)
   if (Math.abs(c[1]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? 1 : -1)
   else if (Math.abs(c[5]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? -1 : 1)
-  return countRaycast(v0, c, gx, gy, this._epsilon)
+  return countRaycast(v0, c, this._epsilon)
 }
 
 function decode(src, offset) {
@@ -306,6 +308,7 @@ function curveRectIntersect(c, rect, dx, dy) {
   if (c.length === 4) { // line
     var c0 = c[0]+dx, c1 = c[1]+dy, c2 = c[2]+dx, c3 = c[3]+dy
     if (rect[0] <= c0 && c0 <= rect[2] && rect[1] <= c1 && c1 <= rect[3]) return true
+    if (rect[0] <= c2 && c2 <= rect[2] && rect[1] <= c3 && c3 <= rect[3]) return true
     vec2set(v1, c0, c1)
     vec2set(v2, c2, c3)
     if (lsi(v0, v1, v2, vec2set(v3,rect[0],rect[1]), vec2set(v4,rect[0],rect[3]))) return true
@@ -313,7 +316,7 @@ function curveRectIntersect(c, rect, dx, dy) {
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[3]), vec2set(v4,rect[2],rect[1]))) return true
     if (lsi(v0, v1, v2, vec2set(v3,rect[2],rect[1]), vec2set(v4,rect[0],rect[1]))) return true
   } else if (c.length === 6) { // quadratic bezier
-    return bzri(rect, c, dx, dy) // todo: padding for border width
+    return bzri(rect, c, dx, dy, 1e-8) // todo: padding for border width
   }
   return false
 }
@@ -333,7 +336,7 @@ function writeU24(out, offset, x) {
   out[offset+2] = x % 256
 }
 
-function countRaycast(p, c, gx, gy, epsilon) {
+function countRaycast(p, c, epsilon) {
   var x = p[0], y = p[1]
   var count = 0
   if (c.length === 4) {
