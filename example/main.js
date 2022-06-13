@@ -44,7 +44,7 @@ function build(n) {
       uniform vec2 curveSize, gridSize, gridGrid;
       uniform float gridN;
 
-      const float ivPrecision = 8.0;
+      const float ivPrecision = 2048.0;
       float parseU16BE(vec2 v) {
         return v.x*65280.0 + v.y*255.0;
       }
@@ -54,6 +54,10 @@ function build(n) {
       }
       float parseU24BE(vec3 v) {
         return v.x*16711680.0 + v.y*65280.0 + v.z*255.0;
+      }
+      float parseI24BE(vec3 v) {
+        float a = 16711680.0, b = 8388608.0, c = 65280.0, s = step(b,v.x*a);
+        return (mod(v.x*a,b) + v.y*c + v.z*255.0) * mix(1.0,-1.0,s) + mix(0.0,128.0,s);
       }
       vec2 readBz(sampler2D texture, vec2 size, float index, float i) {
         vec4 c = texture2D(texture, vec2(
@@ -71,9 +75,12 @@ function build(n) {
         vec2 p = (uv-fuv)*gridSize;
         vec4 bounds = vec4(fuv*gridSize, rbuv*gridSize);
 
-        vec2 i0 = fuv + vec2(0.5/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
+        vec2 i0 = fuv + vec2(0.5/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
+        vec2 i1 = fuv + vec2(1.5/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
         vec4 g0 = texture2D(gridTex, i0);
-        vec2 ra = vec2(parseU16BE(g0.xy), parseU16BE(g0.zw)) / ivPrecision;
+        vec4 g1 = texture2D(gridTex, i1);
+        //vec2 ra = vec2(parseU16BE(g0.xy), parseU16BE(g0.zw)) / ivPrecision;
+        vec2 ra = vec2(parseU24BE(g0.xyz), parseU24BE(g1.xyz)) / ivPrecision;
         float rax = mix(
           1.0 - min(
             min(step(ra.y,p.y),step(p.y,ra.x)),
@@ -89,13 +96,15 @@ function build(n) {
 
         float match = 0.0;
         for (int i = 0; i < ${n}; i++) {
-          vec2 i1 = fuv + vec2((1.5+float(i)*2.0)/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
-          vec2 i2 = fuv + vec2((2.5+float(i)*2.0)/(gridGrid.x*(2.0*gridN+1.0)),0.5/gridGrid.y);
-          vec4 g1 = texture2D(gridTex, i1);
+          vec2 i2 = fuv + vec2((2.5+float(i)*3.0)/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
+          vec2 i3 = fuv + vec2((3.5+float(i)*3.0)/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
+          vec2 i4 = fuv + vec2((4.5+float(i)*3.0)/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
           vec4 g2 = texture2D(gridTex, i2);
-          float index = parseU24BE(g1.xyz);
+          vec4 g3 = texture2D(gridTex, i3);
+          vec4 g4 = texture2D(gridTex, i4);
+          float index = parseU24BE(g2.xyz);
           if (index < 0.5) break;
-          vec2 d = vec2(parseI16BE(g2.xy), parseI16BE(g2.zw));
+          vec2 d = vec2(parseI24BE(g3.xyz), parseI24BE(g4.xyz)) / ivPrecision;
           match += 1.0;
           vec2 b0 = readBz(curveTex, curveSize, index-1.0, 0.0);
           vec2 b1 = readBz(curveTex, curveSize, index-1.0, 1.0);
@@ -108,6 +117,7 @@ function build(n) {
           step(0.99,(uv.y-fuv.y)*gridGrid.y),
           step(0.99,(uv.x-fuv.x)*gridGrid.x)
         )*0.5;
+        f = 1.0;
         gl_FragColor = vec4(vec3(mod(x,2.0),match*0.5,b)*f,1);
       }
     `,

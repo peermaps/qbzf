@@ -24,7 +24,7 @@ function QBZF(src, opts) {
   this._iv = new Map
   this._offsets = new Map
   this._index = 0
-  this._ivPrecision = opts.ivPrecision ?? 8
+  this._ivPrecision = opts.ivPrecision ?? 2048
   this.unitsPerEm = 0
   this._epsilon = opts.epsilon ?? 1e-8
   this._parse(src)
@@ -146,7 +146,7 @@ QBZF.prototype.write = function (opts) {
   var grid = opts.grid
   var n = opts.n
   var text = opts.text
-  var length = grid[0]*grid[1]*(1+n*2)*4
+  var length = grid[0]*grid[1]*(n*3+2)*4
   var data = opts.data ?? new Uint8Array(length)
   this._matches.clear()
   if (data.length < length) {
@@ -163,7 +163,7 @@ QBZF.prototype.write = function (opts) {
     var c = text.charCodeAt(i)
     x += this._stamp(c, x, y, size, grid, n, data)
   }
-  return { data, width: grid[0]*(1+n*2), height: grid[1], size, grid, n }
+  return { data, width: grid[0]*(n*3+2), height: grid[1], size, grid, n }
 }
 
 QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
@@ -251,11 +251,11 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
           continue
         }
         if (m >= n) throw new Error(`grid density overflow from n=${n} grid=[${grid[0]},${grid[1]}]`)
-        var offset = (gk*(n*2+1)+1+m*2)*4
+        var offset = (gk*(n*3+2)+2+m*3)*4
         var index = g.indexes[i]+1
         writeU24(data, offset+0, index)
-        writeI16(data, offset+4, Math.round(gx/grid[0]*size[0]-px))
-        writeI16(data, offset+6, Math.round(gy/grid[1]*size[1]-py))
+        writeI24(data, offset+4, Math.round((gx/grid[0]*size[0]-px)*this._ivPrecision))
+        writeI24(data, offset+8, Math.round((gy/grid[1]*size[1]-py)*this._ivPrecision))
         m++
       }
       this._matches.set(gk, m)
@@ -276,9 +276,11 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
       }
 
       //this._iv.set(gk, iv)
-      var offset = (gx+gy*grid[0])*(n*2+1)*4
-      writeU16(data, offset+0, Math.round((y0-rect[1])*this._ivPrecision))
-      writeU16(data, offset+2, Math.round((y1-rect[1])*this._ivPrecision))
+      var offset = (gx+gy*grid[0])*(n*3+2)*4
+      //writeU16(data, offset+0, Math.round((y0-rect[1])*this._ivPrecision))
+      //writeU16(data, offset+2, Math.round((y1-rect[1])*this._ivPrecision))
+      writeU24(data, offset+0, Math.round((y0-rect[1])*this._ivPrecision))
+      writeU24(data, offset+4, Math.round((y1-rect[1])*this._ivPrecision))
     }
   }
   return g.advanceWidth - g.leftSideBearing
@@ -334,6 +336,12 @@ function writeU24(out, offset, x) {
   out[offset+0] = (x >> 16) % 256
   out[offset+1] = (x >> 8) % 256
   out[offset+2] = x % 256
+}
+function writeI24(out, offset, x) {
+  var ax = Math.abs(x)
+  out[offset+0] = (ax >> 16) % 128 + (x < 0 ? 128 : 0)
+  out[offset+1] = ax >> 8
+  out[offset+2] = ax % 256
 }
 
 function countRaycast(p, c, epsilon) {
