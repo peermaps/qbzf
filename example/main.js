@@ -59,6 +59,18 @@ function build(n) {
         float a = 16711680.0, b = 8388608.0, c = 65280.0, s = step(b,v.x*a);
         return (mod(v.x*a,b) + v.y*c + v.z*255.0) * mix(1.0,-1.0,s) + mix(0.0,128.0,s);
       }
+      float parseI32BE(vec4 v) {
+        float a = 16711680.0, b = 8388608.0, c = 65280.0, s = step(b,v.x*a);
+        return (mod(v.x*a,b) + v.y*c + v.z*255.0) * mix(1.0,-1.0,s) + mix(0.0,128.0,s);
+      }
+      float parseF32BE(vec4 rgba) {
+        vec4 v = rgba*255.0;
+        float s = floor(v.x/128.0);
+        float e = mod(v.x,128.0)*2.0 + floor(v.y/128.0) - 127.0;
+        float f = mod(v.y,128.0)*65536.0 + v.z*256.0 + v.w;
+        return mix(1.0,-1.0,s)*pow(2.0,e)*(1.0+f*pow(2.0,-23.0));
+      }
+
       vec2 readBz(sampler2D texture, vec2 size, float index, float i) {
         vec4 c = texture2D(texture, vec2(
           (mod(index,size.x)*3.0+i+0.5)/(3.0*size.x),
@@ -66,6 +78,9 @@ function build(n) {
         ));
         return vec2(parseI16BE(c.xy),parseI16BE(c.zw));
       }
+      vec2 round(vec2 v) { return floor(v+0.5); }
+      vec3 round(vec3 v) { return floor(v+0.5); }
+      vec4 round(vec4 v) { return floor(v+0.5); }
 
       void main() {
         float x = 0.0;
@@ -79,8 +94,8 @@ function build(n) {
         vec2 i1 = fuv + vec2(1.5/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
         vec4 g0 = texture2D(gridTex, i0);
         vec4 g1 = texture2D(gridTex, i1);
-        //vec2 ra = vec2(parseU16BE(g0.xy), parseU16BE(g0.zw)) / ivPrecision;
-        vec2 ra = vec2(parseU24BE(g0.xyz), parseU24BE(g1.xyz)) / ivPrecision;
+        //vec2 ra = vec2(parseU24BE(g0.xyz), parseU24BE(g1.xyz)) / ivPrecision;
+        vec2 ra = vec2(parseF32BE(g0), parseF32BE(g1));
         float rax = mix(
           1.0 - min(
             min(step(ra.y,p.y),step(p.y,ra.x)),

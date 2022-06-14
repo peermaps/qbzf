@@ -7,6 +7,7 @@ var mivxa = require('./lib/mivxa.js')
 var raycast = require('./lib/raycast.js')
 var bz = require('./lib/bz.js')
 var bzli = require('./lib/bzli.js')
+var ieee754 = require('ieee754')
 
 var tri = [[0,0],[0,0],[0,0]]
 var rect = [0,0,0,0]
@@ -277,10 +278,8 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
 
       //this._iv.set(gk, iv)
       var offset = (gx+gy*grid[0])*(n*3+2)*4
-      //writeU16(data, offset+0, Math.round((y0-rect[1])*this._ivPrecision))
-      //writeU16(data, offset+2, Math.round((y1-rect[1])*this._ivPrecision))
-      writeU24(data, offset+0, Math.round((y0-rect[1])*this._ivPrecision))
-      writeU24(data, offset+4, Math.round((y1-rect[1])*this._ivPrecision))
+      writeF32BE(data, offset+0, y0-rect[1])
+      writeF32BE(data, offset+4, y1-rect[1])
     }
   }
   return g.advanceWidth - g.leftSideBearing
@@ -342,6 +341,9 @@ function writeI24(out, offset, x) {
   out[offset+0] = (ax >> 16) % 128 + (x < 0 ? 128 : 0)
   out[offset+1] = ax >> 8
   out[offset+2] = ax % 256
+}
+function writeF32BE(out, offset, x) {
+  ieee754.write(out, x, offset, false, 23, 4)
 }
 
 function countRaycast(p, c, epsilon) {
