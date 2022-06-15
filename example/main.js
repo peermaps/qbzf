@@ -44,7 +44,6 @@ function build(n) {
       uniform vec2 curveSize, gridSize, gridGrid;
       uniform float gridN;
 
-      const float ivPrecision = 2048.0;
       float parseU16BE(vec2 v) {
         return v.x*65280.0 + v.y*255.0;
       }
@@ -94,7 +93,6 @@ function build(n) {
         vec2 i1 = fuv + vec2(1.5/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
         vec4 g0 = texture2D(gridTex, i0);
         vec4 g1 = texture2D(gridTex, i1);
-        //vec2 ra = vec2(parseU24BE(g0.xyz), parseU24BE(g1.xyz)) / ivPrecision;
         vec2 ra = vec2(parseF32BE(g0), parseF32BE(g1));
         float rax = mix(
           1.0 - min(
@@ -119,7 +117,7 @@ function build(n) {
           vec4 g4 = texture2D(gridTex, i4);
           float index = parseU24BE(g2.xyz);
           if (index < 0.5) break;
-          vec2 d = vec2(parseI24BE(g3.xyz), parseI24BE(g4.xyz)) / ivPrecision;
+          vec2 d = vec2(parseF32BE(g3), parseF32BE(g4));
           match += 1.0;
           vec2 b0 = readBz(curveTex, curveSize, index-1.0, 0.0);
           vec2 b1 = readBz(curveTex, curveSize, index-1.0, 1.0);

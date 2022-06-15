@@ -25,7 +25,7 @@ function QBZF(src, opts) {
   this._iv = new Map
   this._offsets = new Map
   this._index = 0
-  this._ivPrecision = opts.ivPrecision ?? 2048
+  this._ivPrecision = opts.ivPrecision ?? 4096
   this.unitsPerEm = 0
   this._epsilon = opts.epsilon ?? 1e-8
   this._parse(src)
@@ -255,8 +255,8 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
         var offset = (gk*(n*3+2)+2+m*3)*4
         var index = g.indexes[i]+1
         writeU24(data, offset+0, index)
-        writeI24(data, offset+4, Math.round((gx/grid[0]*size[0]-px)*this._ivPrecision))
-        writeI24(data, offset+8, Math.round((gy/grid[1]*size[1]-py)*this._ivPrecision))
+        writeF32(data, offset+4, gx/grid[0]*size[0]-px)
+        writeF32(data, offset+8, gy/grid[1]*size[1]-py)
         m++
       }
       this._matches.set(gk, m)
@@ -278,8 +278,8 @@ QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
 
       //this._iv.set(gk, iv)
       var offset = (gx+gy*grid[0])*(n*3+2)*4
-      writeF32BE(data, offset+0, y0-rect[1])
-      writeF32BE(data, offset+4, y1-rect[1])
+      writeF32(data, offset+0, y0-rect[1])
+      writeF32(data, offset+4, y1-rect[1])
     }
   }
   return g.advanceWidth - g.leftSideBearing
@@ -342,7 +342,7 @@ function writeI24(out, offset, x) {
   out[offset+1] = ax >> 8
   out[offset+2] = ax % 256
 }
-function writeF32BE(out, offset, x) {
+function writeF32(out, offset, x) {
   ieee754.write(out, x, offset, false, 23, 4)
 }
 
