@@ -25,7 +25,6 @@ function QBZF(src, opts) {
   this._iv = new Map
   this._offsets = new Map
   this._index = 0
-  this._ivPrecision = opts.ivPrecision ?? 4096
   this.unitsPerEm = 0
   this._epsilon = opts.epsilon ?? 1e-8
   this._parse(src)
@@ -193,7 +192,7 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
       var urc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        urc += this._countRaycast(r2,r3,c)
+        urc += this._countRaycast(r2,r3,c,size[1],gx,gy)
       }
       var rc = []
       for (var i = 0; i < g.curves.length; i++) {
@@ -223,7 +222,7 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
         }
       }
       rc.sort(cmp)
-      var iv = []
+      var iv = this._iv.get(gk) ?? []
       var q = 0
       if (urc % 2 === 0 && rc.length === 0) {
         q = 1
@@ -246,6 +245,7 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
         iv = iv.concat(rc)
         iv.push(rect[3])
       }
+      if (gx === 2 && gy === 1) console.log('q=',q,'urc=',urc)
 
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
@@ -277,7 +277,7 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
         }
       }
 
-      //this._iv.set(gk, iv)
+      this._iv.set(gk, iv)
       var offset = (gx+gy*grid[0])*(n*3+2)*4
       writeF32(data, offset+0, y0-rect[1])
       writeF32(data, offset+4, y1-rect[1])
@@ -286,11 +286,11 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
   return g.advanceWidth - g.leftSideBearing
 }
 
-QBZF.prototype._countRaycast = function (x, y, c) {
+QBZF.prototype._countRaycast = function (x, y, c, xfar, gx, gy) {
   vec2set(v0,x,y)
   if (Math.abs(c[1]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? 1 : -1)
   else if (Math.abs(c[5]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? -1 : 1)
-  return countRaycast(v0, c, this._epsilon)
+  return countRaycast(v0, c, xfar, this._epsilon, gx, gy)
 }
 
 function decode(src, offset) {
@@ -347,43 +347,16 @@ function writeF32(out, offset, x) {
   ieee754.write(out, x, offset, false, 23, 4)
 }
 
-function countRaycast(p, c, epsilon) {
+function countRaycast(p, c, xfar, epsilon, gx, gy) {
   var x = p[0], y = p[1]
   var count = 0
+  if (gx === 2 && gy === 1) console.log('rc',JSON.stringify(p),JSON.stringify(c))
   if (c.length === 4) {
-    // m = (c[1]-c[3])/(c[0]-c[2])
-    // y = m*x + b
-    // b = y - m*x
-    // b = c[1] - (c[1]-c[3])/(c[0]-c[2])*c[0]
-    // y = (c[1]-c[3])/(c[0]-c[2])*x + c[1] - (c[1]-c[3])/(c[0]-c[2])*c[0]
-    // y - (c[1]-c[3])/(c[0]-c[2])*x - c[1] + (c[1]-c[3])/(c[0]-c[2])*c[0] = 0
-    // y*(c[0]-c[2]) - (c[1]-c[3])*x - c[1]*(c[0]-c[2]) + (c[1]-c[3])*c[0] = 0
-    // y*(c[0]-c[2]) - (c[1]-c[3])*x - c[1]*c[0] + c[1]*c[2] + c[0]*c[1]-c[0]*c[3] = 0
-    // y*(c[0]-c[2]) - (c[1]-c[3])*x + c[1]*c[2] - c[0]*c[3] = 0
-    // A = c[3]-c[1]
-    // B = c[0]-c[2]
-    // C = c[1]*c[2] - c[0]*c[3]
-    // A*x + B*y + C = 0
-    // x = -(C + B*y) / A
-    // y = -(C + A*x)/B
-    var A = c[3]-c[1]
-    if (Math.abs(A) < epsilon) return 0
-    var min1 = Math.min(c[1],c[3]), max1 = Math.max(c[1],c[3])
-    var B = c[0]-c[2]
-    if (Math.abs(B) < epsilon) {
-      var ix = c[0] > x && min1-epsilon <= y && y <= max1+epsilon ? 1 : 0
-      if (ix) count++
-    } else {
-      var C = c[1]*c[2]-c[0]*c[3]
-      var cx = -(B*y+C)/A
-      var cy = -(C+A*x)/B
-      var min0 = Math.min(c[0],c[2]), max0 = Math.max(c[0],c[2])
-      var ix = cx > x
-        && min0-epsilon <= cx && cx <= max0+epsilon
-        && min1-epsilon <= cy && cy <= max1+epsilon
-        ? 1 : 0
-      if (ix) count++
-    }
+    vec2set(v1,c[0],c[1])
+    vec2set(v2,c[2],c[3])
+    vec2set(v3,p[0],p[1])
+    vec2set(v4,xfar,p[1])
+    if (lsi(v0,v1,v2,v3,v4)) count++
   } else {
     var n = raycast(v0, y, c[1], c[3], c[5])
     if (n > 0) {
