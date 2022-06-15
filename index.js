@@ -167,13 +167,14 @@ QBZF.prototype.write = function (opts) {
   return { data, width: grid[0]*(n*3+2), height: grid[1], size, grid, n }
 }
 
-QBZF.prototype._stamp = function (code, px, py, size, grid, n, data) {
+QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
   var g = this._glyphs.get(String(code))
   if (g === undefined) throw new Error(`todo: glyph or hook for code not found: ${code}`)
+  var px = sx + g.bbox[0], py = sy + g.bbox[1]
   var xstart = Math.max(0, Math.floor((px + g.bbox[0] - g.leftSideBearing) / size[0] * grid[0]))
   var xend = Math.ceil((px + g.bbox[2] - g.leftSideBearing) / size[0] * grid[0])
-  var ystart = Math.max(0, Math.floor((py + g.bbox[1]) / size[1] * grid[1]))
-  var yend = Math.min(grid[1],Math.ceil((py + g.bbox[3]) / size[1] * grid[1]))
+  var ystart = Math.max(0, Math.floor((sy + g.bbox[1]) / size[1] * grid[1]))
+  var yend = Math.min(grid[1],Math.ceil((sy + g.bbox[3]) / size[1] * grid[1]))
   var sg0 = size[0]/grid[0]
   var sg1 = size[1]/grid[1]
   for (var gy = ystart; gy < yend; gy++) {
