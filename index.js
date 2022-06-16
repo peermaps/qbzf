@@ -192,7 +192,7 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
       var urc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        urc += this._countRaycast(r2,r3,c,size[1],gx,gy)
+        urc += this._countRaycast(r2,r3,c,size[1])
       }
       var rc = []
       for (var i = 0; i < g.curves.length; i++) {
@@ -286,11 +286,11 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
   return g.advanceWidth - g.leftSideBearing
 }
 
-QBZF.prototype._countRaycast = function (x, y, c, xfar, gx, gy) {
+QBZF.prototype._countRaycast = function (x, y, c, xfar) {
   vec2set(v0,x,y)
   if (Math.abs(c[1]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? 1 : -1)
   else if (Math.abs(c[5]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? -1 : 1)
-  return countRaycast(v0, c, xfar, this._epsilon, gx, gy)
+  return countRaycast(v0, c, xfar, this._epsilon)
 }
 
 function decode(src, offset) {
@@ -347,10 +347,9 @@ function writeF32(out, offset, x) {
   ieee754.write(out, x, offset, false, 23, 4)
 }
 
-function countRaycast(p, c, xfar, epsilon, gx, gy) {
+function countRaycast(p, c, xfar, epsilon) {
   var x = p[0], y = p[1]
   var count = 0
-  if (gx === 2 && gy === 1) console.log('rc',JSON.stringify(p),JSON.stringify(c))
   if (c.length === 4) {
     vec2set(v1,c[0],c[1])
     vec2set(v2,c[2],c[3])
