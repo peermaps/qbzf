@@ -1,5 +1,6 @@
 var lsi = require('line-segment-intersect-2d')
 var vec2set = require('gl-vec2/set')
+var vec2dist = require('gl-vec2/distance')
 var varint = require('varint')
 var magic = require('./lib/magic.js')
 var bzri = require('./lib/bzri.js')
@@ -245,7 +246,6 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
         iv = iv.concat(rc)
         iv.push(rect[3])
       }
-      if (gx === 2 && gy === 1) console.log('q=',q,'urc=',urc)
 
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
@@ -355,7 +355,9 @@ function countRaycast(p, c, xfar, epsilon) {
     vec2set(v2,c[2],c[3])
     vec2set(v3,p[0],p[1])
     vec2set(v4,xfar,p[1])
-    if (lsi(v0,v1,v2,v3,v4)) count++
+    if (collinear(v3,v4,v1,epsilon) || collinear(v3,v4,v2,epsilon)) {
+      //console.log('collinear', p, c)
+    } else if (lsi(v0,v1,v2,v3,v4)) count++
   } else {
     var n = raycast(v0, y, c[1], c[3], c[5])
     if (n > 0) {
@@ -368,6 +370,13 @@ function countRaycast(p, c, xfar, epsilon) {
     }
   }
   return count
+}
+
+function collinear(a, b, c, epsilon) {
+  var ab = vec2dist(a,b)
+  var ac = vec2dist(a,c)
+  var bc = vec2dist(b,c)
+  return Math.abs(ab - ac - bc) < epsilon
 }
 
 function vec4set(out, a, b, c, d) {
