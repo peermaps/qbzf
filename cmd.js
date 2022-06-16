@@ -5,6 +5,7 @@ var pack = require('./lib/pack.js')
 var from = require('from2')
 var pump = require('stream').pipeline
 var varint = require('varint')
+var uniq = require('uniq')
 
 var minimist = require('minimist')
 var argv = minimist(process.argv.slice(2), {
@@ -70,6 +71,7 @@ if (argv.indexes !== undefined) {
 if (indexes.length === 0) {
   indexes = Object.keys(font.glyphs.glyphs)
 }
+uniq(indexes)
 
 var index = 0
 if (argv.ls) {
