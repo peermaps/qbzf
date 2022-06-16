@@ -14,6 +14,7 @@ var argv = minimist(process.argv.slice(2), {
     i: 'infile',
     o: 'outfile',
     u: ['unicode','unicodes'],
+    c: ['char','chars'],
     x: ['index','indexes'],
     l: 'ls',
   },
@@ -33,7 +34,7 @@ var outstream = argv.outfile === '-' ? process.stdout : fs.createWriteStream(arg
 var isHeader = true
 var indexes = []
 
-if (argv.unicodes) {
+if (argv.unicodes !== undefined) {
   var codes = new Set
   var ucodes = [].concat(argv.unicodes)
     .flatMap(c => String(c).split(','))
@@ -47,10 +48,26 @@ if (argv.unicodes) {
       indexes.push(Number(index))
     }
   }
-} else if (argv.indexes) {
-  indexes = [].concat(argv.indexes)
+}
+if (argv.chars !== undefined) {
+  var codes = new Set
+  var chars = [].concat(argv.chars)
+    .flatMap(c => c === ',' ? c : String(c).split(','))
+  for (var i = 0; i < chars.length; i++) {
+    codes.add(chars[i].charCodeAt(0))
+  }
+  for (var [index,g] of Object.entries(font.glyphs.glyphs)) {
+    if (codes.has(g.unicode)) {
+      indexes.push(Number(index))
+    }
+  }
+}
+if (argv.indexes !== undefined) {
+  indexes = indexes.concat(argv.indexes)
     .flatMap(c => String(c).split(',').map(Number))
-} else {
+}
+
+if (indexes.length === 0) {
   indexes = Object.keys(font.glyphs.glyphs)
 }
 
@@ -95,6 +112,7 @@ function usage() {
 
       -l --list     List all codes from the input font file.
       -u --unicode  Only include glyphs with these unicode values.
+      -c --char     Only include glyphs with these character values.
       -x --index    Only include glyphs with these indexes.
 
       -h --help     Show this message.
@@ -102,6 +120,9 @@ function usage() {
 
       Unicode and index lists can be specified with multiple flags (-u 97 -u 98 -u 99)
       or with comma-separated lists (-u 97,98,99).
+
+      Char lists can be specified with multiple flags or comma-separated lists.
+      For a literal comma, use "-c,".
 
       Unicodes can be specified in hexadecimal with a leading "u": (-u u0061).
 
