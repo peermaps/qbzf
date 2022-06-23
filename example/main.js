@@ -9,16 +9,17 @@ window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
 ;(async function () {
-  //var qbzf = new QBZF(new Uint8Array(await (await fetch('/hello')).arrayBuffer()))
-  var qbzf = new QBZF(Uint8Array.from([
-    113,98,122,102,49,10,128,16,60,101,216,19,226,1,226,1,57,254,17,246,17,250,53,188,9,2,0,2,179,1,209,39,0,76,251,2,228,1,195,4,238,4,197,1,188,4,197,1,2,0,128,5,0,154,3,52,220,4,52,140,3,156,1,2,0,2,219,2,205,4,83,149,3,127,235,4,43,165,3,43,2,0,195,12,0,209,6,184,2,163,7,184,2,183,2,204,6,2,0,4,166,4,168,2,232,6,130,7,196,2,162,6,196,2,2,0,208,10,0,202,5,163,2,156,6,161,2,136,2,149,6,175,39,106,226,30,2,7,174,2,169,1,226,3,231,3,180,1,179,3,180,1,2,0,151,7,0,237,3,173,1,163,4,173,1,211,1,233,3,2,0,42,104,164,20,244,2,244,2,0,200,17,168,24,216,52,200,10,2,0,2,199,10,205,8,0,2,188,10,4,190,2,123,220,3,239,2,158,1,243,2,158,1,2,0,249,6,0,213,3,189,1,255,3,189,1,171,1,133,4,2,0,2,241,9,211,8,0,2,168,24,216,8,0,2,195,9,144,3,202,1,182,2,174,2,160,4,100,158,3,100,2,0,138,9,0,200,4,239,1,214,4,237,1,198,1,189,5,10,108,242,8,130,3,130,3,0,242,5,168,24,134,9,0,2,168,24,210,8,0,2,167,24,205,8,0,52,111,202,19,226,1,226,1,57,234,17,246,17,178,29,190,15,2,0,243,6,0,211,3,231,1,255,3,229,1,171,1,247,4,2,0,4,145,3,170,1,249,4,136,4,229,1,214,3,229,1,2,0,246,6,0,210,3,232,1,136,4,232,1,172,1,248,4,2,0,4,142,3,171,1,246,4,255,3,234,1,209,3,234,1,0,184,2,2,0,164,11,0,242,5,183,2,186,6,183,2,146,2,223,6,2,0,4,165,4,145,2,223,6,177,6,183,2,241,5,183,2,2,0,161,11,0,243,5,184,2,171,6,186,2,143,2,224,6,2,0,4,168,4,144,2,224,6,186,6,184,2,244,5,184,2
-  ]))
+  var qbzf = new QBZF(new Uint8Array(await (await fetch('/font0')).arrayBuffer()))
+  //var qbzf = new QBZF(new Uint8Array(await (await fetch('/font/dvs.bzf')).arrayBuffer()))
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
   data.grid = qbzf.write({
-    text: 'hello',
-    size: [4500,2000],
-    offset: [50,50],
+    //text: 'Why is this sentence. Testing, 1, 2, 3...',
+    text: q.get('text') || 'W',
+    //size: [8000,6000],
+    //offset: [400,2500],
+    size: (q.get('size') || '2500,2000').split(',').map(Number),
+    offset: (q.get('offset') || '250,250').split(',').map(Number),
     grid,
     n: 6,
   })
@@ -69,7 +70,6 @@ function build(n) {
         float f = mod(v.y,128.0)*65536.0 + v.z*256.0 + v.w;
         return mix(1.0,-1.0,s)*pow(2.0,e)*(1.0+f*pow(2.0,-23.0));
       }
-
       vec2 readBz(sampler2D texture, vec2 size, float index, float i) {
         vec4 c = texture2D(texture, vec2(
           (mod(index,size.x)*3.0+i+0.5)/(3.0*size.x),
@@ -77,9 +77,35 @@ function build(n) {
         ));
         return vec2(parseI16BE(c.xy),parseI16BE(c.zw));
       }
-      vec2 round(vec2 v) { return floor(v+0.5); }
-      vec3 round(vec3 v) { return floor(v+0.5); }
-      vec4 round(vec4 v) { return floor(v+0.5); }
+
+      float det(vec2 a, vec2 b) {
+        return a.x*b.y-b.x*a.y;
+      }
+      vec2 bz(vec2 b0, vec2 b1, vec2 b2, float t) {
+        return mix(mix(b0,b1,t),mix(b1,b2,t),t);
+      }
+      float ldist(vec2 p, vec2 l1, vec2 l2) {
+        vec2 ld = l2 -l1;
+        float t = ((p.x - l1.x) * ld.x + (p.y - l1.y) * ld.y) / (ld.x*ld.x + ld.y*ld.y);
+        t = max(0.0,min(1.0,t));
+        return length(p - l1 - t*ld);
+      }
+      vec2 bdist(vec2 b0, vec2 b1, vec2 b2) {
+        if (distance(b0,b1) < 1e-8) {
+          return vec2(ldist(vec2(0,0), b0, b2));
+        }
+        float epsilon = 0.01;
+        float a = det(b0,b2), b = 2.0*det(b1,b0), d = 2.0*det(b2,b1);
+        float f = b*d-a*a;
+        vec2 d21 = b2-b1, d10 = b1-b0, d20 = b2-b0;
+        vec2 gf = 2.0*(b*d21+d*d10+a*d20);
+        gf = vec2(gf.y,-gf.x);
+        vec2 pp = -f*gf/dot(gf,gf);
+        vec2 d0p = b0-pp;
+        float ap = det(d0p,d20), bp = 2.0*det(d10,d0p);
+        float t = clamp((ap+bp)/(2.0*a+b+d), 0.0, 1.0);
+        return bz(b0,b1,b2,t);
+      }
 
       void main() {
         float x = 0.0;
@@ -107,6 +133,7 @@ function build(n) {
         );
         x += rax;
 
+        float line = 0.0;
         float match = 0.0;
         for (int i = 0; i < ${n}; i++) {
           vec2 i2 = fuv + vec2((2.5+float(i)*3.0)/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
@@ -117,21 +144,29 @@ function build(n) {
           vec4 g4 = texture2D(gridTex, i4);
           float index = parseU24BE(g2.xyz);
           if (index < 0.5) break;
+          //match += 1.0;
           vec2 d = vec2(parseF32BE(g3), parseF32BE(g4));
-          match += 1.0;
           vec2 b0 = readBz(curveTex, curveSize, index-1.0, 0.0);
           vec2 b1 = readBz(curveTex, curveSize, index-1.0, 1.0);
           vec2 b2 = readBz(curveTex, curveSize, index-1.0, 2.0);
           vec2 fd = d-fuv*gridSize;
-          x += raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
+          //x += raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
+          float rc = raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
+          match += step(0.5,rc);
+          x += rc;
+
+          float bd = length(bdist(b0-(p+d),b1-(p+d),b2-(p+d)));
+          line += step(bd,10.0);
+          //line += step(50.0,bd);
         }
         float b = step(0.95,(uv.x-fuv.x)*gridGrid.x) * rax;
-        float f = 1.0 - max(
-          step(0.99,(uv.y-fuv.y)*gridGrid.y),
-          step(0.99,(uv.x-fuv.x)*gridGrid.x)
+        float f = max(
+          step(0.98,(uv.y-fuv.y)*gridGrid.y),
+          step(0.98,(uv.x-fuv.x)*gridGrid.x)
         )*0.5;
-        f = 1.0;
-        gl_FragColor = vec4(vec3(mod(x,2.0),match*0.5,b)*f,1);
+        //gl_FragColor = vec4(vec3(mod(x,2.0),match*0.5,b)*f+(f-vec3(0.8)),1);
+        //gl_FragColor = vec4(vec3(mod(x,2.0)),1);
+        gl_FragColor = vec4(vec3(mod(x,2.0),line,match*0.5)+f,1);
       }
     `,
     vert: `

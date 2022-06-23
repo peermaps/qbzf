@@ -118,10 +118,8 @@ QBZF.prototype._buildCurves = function () {
       if (c.length === 4) {
         writeI16(data, offset+0, c[0]-g.bbox[0])
         writeI16(data, offset+2, c[1]-g.bbox[1])
-        writeU16(data, offset+4, c[0]-g.bbox[0])
-        writeU16(data, offset+6, c[1]-g.bbox[1])
-        //writeI16(data, offset+4, Math.round((c[0]+c[2])*0.5)-g.bbox[0])
-        //writeI16(data, offset+6, Math.round((c[1]+c[3])*0.5)-g.bbox[1])
+        writeI16(data, offset+4, c[0]-g.bbox[0])
+        writeI16(data, offset+6, c[1]-g.bbox[1])
         writeI16(data, offset+8, c[2]-g.bbox[0])
         writeI16(data, offset+10, c[3]-g.bbox[1])
       } else if (c.length === 6) {
@@ -256,8 +254,8 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
         var offset = (gk*(n*3+2)+2+m*3)*4
         var index = g.indexes[i]+1
         writeU24(data, offset+0, index)
-        writeF32(data, offset+4, gx/grid[0]*size[0]-px)
-        writeF32(data, offset+8, gy/grid[1]*size[1]-py)
+        writeF32(data, offset+4, rect[0]-px)
+        writeF32(data, offset+8, rect[1]-py)
         m++
       }
       this._matches.set(gk, m)
