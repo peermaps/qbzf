@@ -13,16 +13,10 @@ var data = { curves: null, grid: null }
   //var qbzf = new QBZF(new Uint8Array(await (await fetch('/font/dvs.bzf')).arrayBuffer()))
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
-  data.grid = qbzf.write({
-    //text: 'Why is this sentence. Testing, 1, 2, 3...',
+  data.grid = qbzf.write(qbzf.measure({
     text: q.get('text') || 'W',
-    //size: [8000,6000],
-    //offset: [400,2500],
-    size: (q.get('size') || '2500,2000').split(',').map(Number),
-    offset: (q.get('offset') || '250,250').split(',').map(Number),
-    grid,
     n: 6,
-  })
+  }))
   data.grid.texture = regl.texture(data.grid)
   data.unitsPerEm = qbzf.unitsPerEm
   draw = build(data.grid.n)
@@ -144,16 +138,13 @@ function build(n) {
           vec4 g4 = texture2D(gridTex, i4);
           float index = parseU24BE(g2.xyz);
           if (index < 0.5) break;
-          //match += 1.0;
+          match += 1.0;
           vec2 d = vec2(parseF32BE(g3), parseF32BE(g4));
           vec2 b0 = readBz(curveTex, curveSize, index-1.0, 0.0);
           vec2 b1 = readBz(curveTex, curveSize, index-1.0, 1.0);
           vec2 b2 = readBz(curveTex, curveSize, index-1.0, 2.0);
           vec2 fd = d-fuv*gridSize;
-          //x += raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
-          float rc = raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
-          match += step(0.5,rc);
-          x += rc;
+          x += raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
 
           float bd = length(bdist(b0-(p+d),b1-(p+d),b2-(p+d)));
           line += step(bd,10.0);
@@ -163,10 +154,10 @@ function build(n) {
         float f = max(
           step(0.98,(uv.y-fuv.y)*gridGrid.y),
           step(0.98,(uv.x-fuv.x)*gridGrid.x)
-        )*0.5;
+        )*0.1;
         //gl_FragColor = vec4(vec3(mod(x,2.0),match*0.5,b)*f+(f-vec3(0.8)),1);
-        //gl_FragColor = vec4(vec3(mod(x,2.0)),1);
-        gl_FragColor = vec4(vec3(mod(x,2.0),line,match*0.5)+f,1);
+        gl_FragColor = vec4(vec3(mod(x,2.0)),1);
+        //gl_FragColor = vec4(vec3(mod(x,2.0),line,match*0.5)+f,1);
       }
     `,
     vert: `

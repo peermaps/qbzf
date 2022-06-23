@@ -26,6 +26,7 @@ function QBZF(src, opts) {
   this._iv = new Map
   this._offsets = new Map
   this._index = 0
+  this._density = opts.density ?? [200,200]
   this.unitsPerEm = 0
   this._epsilon = opts.epsilon ?? 1e-8
   this._parse(src)
@@ -136,8 +137,29 @@ QBZF.prototype._buildCurves = function () {
 }
 
 QBZF.prototype.measure = function (opts) {
-  // calculate parameters for write(): grid, n, size
-  throw new Error('not implemented')
+  var density = opts.density ?? this._density
+  var size = [0,0]
+  var minx = 0, maxx = 0, miny = 0, maxy = 0
+  var text = opts.text ?? ''
+  for (var i = 0; i < text.length; i++) {
+    var code = text.charCodeAt(i)
+    var g = this._glyphs.get(String(code))
+    minx = Math.min(minx, size[0] + g.bbox[0])
+    maxx = Math.max(maxx, size[0] + g.bbox[2])
+    size[0] += g.advanceWidth - g.leftSideBearing
+    maxx = Math.max(maxx, size[0])
+    miny = Math.min(miny, g.bbox[1])
+    maxy = Math.max(maxy, g.bbox[3])
+  }
+  maxx += 1
+  minx -= 1
+  maxy += 1
+  miny -= 1
+  size[0] = Math.max(size[0], maxx-minx)
+  size[1] = maxy-miny
+  var grid = [Math.ceil(size[0]/density[0]),Math.ceil(size[1]/density[1])]
+  var offset = [-minx,-miny]
+  return Object.assign({}, opts, { size, grid, offset })
 }
 
 QBZF.prototype.write = function (opts) {
