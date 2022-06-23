@@ -5,36 +5,7 @@ float bz(float a, float b, float c, float t) {
   return t1*t1*a + 2.0*t1*t*b + t*t*c;
 }
 
-float line_intersect(vec2 a0, vec2 a1, vec2 b0, vec2 b1, float epsilon) {
-  vec2 da = a1-a0;
-  vec2 db = b1-b0;
-  float d = da.x*db.y - db.x*da.y;
-  if (abs(d) < epsilon) return 0.0;
-  vec2 c = a0-b0;
-  float sn = da.x*c.y - da.y*c.x;
-  if (abs(step(sn,0.0)-step(0.0,d)) < epsilon) return 0.0;
-  if (abs(step(sn,0.0)-step(0.0,d)) < epsilon) return 0.0;
-  float tn = db.x*c.y - db.y*c.x;
-  if (abs(step(tn,0.0)-step(0.0,d)) < epsilon) return 0.0;
-  if (abs(step(d,sn)-step(0.0,d)) < epsilon) return 0.0;
-  if (abs(step(d,tn)-step(0.0,d)) < epsilon) return 0.0;
-  float t = tn / d;
-  return 1.0;
-}
-
 float raycast(vec2 p, vec2 b0, vec2 b1, vec2 b2, vec4 bounds, float epsilon) {
-  /*
-  if (max(distance(b0,b1),abs(b0.x-b2.x)) < epsilon) {
-    //if (p.x < b0.x && min(b0.y,b2.y) <= p.y && p.y <= max(b0.y,b2.y)) return 1.0;
-    if (p.x > b0.x) return 0.0;
-    if (p.y > max(b0.y,b2.y)) return 0.0;
-    if (p.y < min(b0.y,b2.y)) return 0.0;
-    return 1.0;
-    //b1 = (b0+b2)*0.5 + vec2(0.1,0.1);
-    //return p.x > b0.x && b0.y <= p.y && p.y <= b2.y ? 1.0 : 0.0;
-    //return line_intersect(p, vec2(bounds.z,p.y), b0, b2, epsilon);
-  }
-  */
   float a = b0.y - 2.0*b1.y + b2.y;
   float b = -2.0*(b0.y - b1.y);
   float c = b0.y - p.y;
