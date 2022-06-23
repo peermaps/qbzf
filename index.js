@@ -139,27 +139,23 @@ QBZF.prototype._buildCurves = function () {
 QBZF.prototype.measure = function (opts) {
   var density = opts.density ?? this._density
   var size = [0,0]
-  var minx = 0, maxx = 0, miny = 0, maxy = 0
+  var bbox = [Infinity,Infinity,-Infinity,-Infinity]
   var text = opts.text ?? ''
   for (var i = 0; i < text.length; i++) {
     var code = text.charCodeAt(i)
     var g = this._glyphs.get(String(code))
-    minx = Math.min(minx, size[0] + g.bbox[0])
-    maxx = Math.max(maxx, size[0] + g.bbox[2])
+    bbox[0] = Math.min(bbox[0], size[0] + g.bbox[0])
+    bbox[2] = Math.max(bbox[2], size[0] + g.bbox[2])
     size[0] += g.advanceWidth - g.leftSideBearing
-    maxx = Math.max(maxx, size[0])
-    miny = Math.min(miny, g.bbox[1])
-    maxy = Math.max(maxy, g.bbox[3])
+    bbox[2] = Math.max(bbox[2], size[0])
+    bbox[1] = Math.min(bbox[1], g.bbox[1])
+    bbox[3] = Math.max(bbox[3], g.bbox[3])
   }
-  maxx += 1
-  minx -= 1
-  maxy += 1
-  miny -= 1
-  size[0] = Math.max(size[0], maxx-minx)
-  size[1] = maxy-miny
+  size[0] = Math.max(size[0],bbox[2]) - bbox[0] + 1
+  size[1] = bbox[3] - bbox[1] + 1
   var grid = [Math.ceil(size[0]/density[0]),Math.ceil(size[1]/density[1])]
-  var offset = [-minx,-miny]
-  return Object.assign({}, opts, { size, grid, offset })
+  var offset = [-bbox[0],-bbox[1]]
+  return Object.assign({}, opts, { size, grid, offset, bbox })
 }
 
 QBZF.prototype.write = function (opts) {
