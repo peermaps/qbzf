@@ -108,7 +108,7 @@ QBZF.prototype._parse = function (src) {
 }
 
 QBZF.prototype._buildCurves = function () {
-  var w = Math.ceil(Math.sqrt(this._index)/3)
+  var w = Math.ceil(Math.sqrt(this._index/3))
   var h = Math.ceil(this._index/w)
   var data = new Uint8Array(w*h*3*4)
   for (var [key,g] of this._glyphs) {
