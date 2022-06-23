@@ -72,8 +72,8 @@ function build(n) {
       }
       vec2 readBz(sampler2D texture, vec2 size, float index, float i) {
         vec4 c = texture2D(texture, vec2(
-          (mod(index,size.x)*3.0+i+0.5)/(3.0*size.x),
-          (floor(index/size.x)+0.5) / size.y
+          (mod(index,size.x/3.0)*3.0+i+0.5)/size.x,
+          (floor(index*3.0/size.x)+0.5) / size.y
         ));
         return vec2(parseI16BE(c.xy),parseI16BE(c.zw));
       }

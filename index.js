@@ -132,7 +132,7 @@ QBZF.prototype._buildCurves = function () {
       }
     }
   }
-  return { data, width: w*3, height: h, size: [w,h] }
+  return { data, width: w*3, height: h, size: [w*3,h] }
 }
 
 QBZF.prototype.measure = function (opts) {
