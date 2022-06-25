@@ -71,8 +71,13 @@ function build(n) {
         ));
         return vec2(parseI16BE(c.xy),parseI16BE(c.zw));
       }
-      vec2 pxCoord(vec2 p, vec2 size) {
-        return (p + vec2(0.5)) / size;
+      vec2 pxCoord(vec2 p, vec2 size, vec2 dim) {
+        //return (p + vec2(0.5)) / size;
+        float offset = floor(p.x+0.5) + floor(p.y+0.5)*size.x;
+        //float x = floor(mod(offset, dim.x));
+        float y = floor(offset / dim.x);
+        float x = floor(offset - y*dim.x);
+        return (vec2(x,y)+vec2(0.5)) / dim;
       }
 
       float det(vec2 a, vec2 b) {
@@ -114,9 +119,10 @@ function build(n) {
         float q = 3.0*gridN+2.0;
         vec2 pc = floor(uv*gridSize)*vec2(q,1);
         vec2 gq = gridSize*vec2(q,1);
+        vec2 gd = gridDim;
 
-        vec2 i0 = pxCoord(pc + vec2(0,0), gq);
-        vec2 i1 = pxCoord(pc + vec2(1,0), gq);
+        vec2 i0 = pxCoord(pc + vec2(0,0), gq, gd);
+        vec2 i1 = pxCoord(pc + vec2(1,0), gq, gd);
         vec4 g0 = texture2D(gridTex, i0);
         vec4 g1 = texture2D(gridTex, i1);
         vec2 ra = vec2(parseF32BE(g0), parseF32BE(g1));
@@ -136,9 +142,9 @@ function build(n) {
         float line = 0.0;
         float match = 0.0;
         for (int i = 0; i < ${n}; i++) {
-          vec2 i2 = pxCoord(pc + vec2(2.0+float(i)*3.0,0), gq);
-          vec2 i3 = pxCoord(pc + vec2(3.0+float(i)*3.0, 0), gq);
-          vec2 i4 = pxCoord(pc + vec2(4.0+float(i)*3.0, 0), gq);
+          vec2 i2 = pxCoord(pc + vec2(2.0+float(i)*3.0,0), gq, gd);
+          vec2 i3 = pxCoord(pc + vec2(3.0+float(i)*3.0, 0), gq, gd);
+          vec2 i4 = pxCoord(pc + vec2(4.0+float(i)*3.0, 0), gq, gd);
           vec4 g2 = texture2D(gridTex, i2);
           vec4 g3 = texture2D(gridTex, i3);
           vec4 g4 = texture2D(gridTex, i4);

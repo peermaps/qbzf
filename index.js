@@ -163,7 +163,11 @@ QBZF.prototype.write = function (opts) {
   var grid = opts.grid
   var n = opts.n
   var text = opts.text
-  var length = grid[0]*grid[1]*(n*3+2)*4
+  var q = n*3+2
+  var l = grid[0]*grid[1]*q
+  var width = Math.ceil(Math.sqrt(l)/q)*q
+  var height = Math.ceil(l/width)
+  var length = width * height * 4
   var data = opts.data ?? new Uint8Array(length)
   this._matches.clear()
   if (data.length < length) {
@@ -180,7 +184,6 @@ QBZF.prototype.write = function (opts) {
     var c = text.charCodeAt(i)
     x += this._stamp(c, x, y, units, grid, n, data)
   }
-  var width = grid[0]*(n*3+2), height = grid[1]
   return { data, width, height, units, grid, n, dimension: [width,height] }
 }
 
