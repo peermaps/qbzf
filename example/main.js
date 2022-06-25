@@ -36,7 +36,7 @@ function build(n) {
       #pragma glslify: raycast = require('../raycast.glsl')
       varying vec2 vpos;
       uniform sampler2D curveTex, gridTex;
-      uniform vec2 curveSize, gridSize, gridGrid;
+      uniform vec2 curveSize, gridUnits, gridSize, gridDim;
       uniform float gridN;
 
       float parseU16BE(vec2 v) {
@@ -71,6 +71,9 @@ function build(n) {
         ));
         return vec2(parseI16BE(c.xy),parseI16BE(c.zw));
       }
+      vec2 pxCoord(vec2 p, vec2 size) {
+        return (p + vec2(0.5)) / size;
+      }
 
       float det(vec2 a, vec2 b) {
         return a.x*b.y-b.x*a.y;
@@ -104,13 +107,16 @@ function build(n) {
       void main() {
         float x = 0.0;
         vec2 uv = vpos*0.5+0.5;
-        vec2 fuv = floor(uv*gridGrid)/gridGrid;
-        vec2 rbuv = fuv + vec2(1)/gridGrid;
-        vec2 p = (uv-fuv)*gridSize;
-        vec4 bounds = vec4(fuv*gridSize, rbuv*gridSize);
+        vec2 fuv = floor(uv*gridSize)/gridSize;
+        vec2 rbuv = fuv + vec2(1)/gridSize;
+        vec2 p = (uv-fuv)*gridUnits;
+        vec4 bounds = vec4(fuv*gridUnits, rbuv*gridUnits);
+        float q = 3.0*gridN+2.0;
+        vec2 pc = floor(uv*gridSize)*vec2(q,1);
+        vec2 gq = gridSize*vec2(q,1);
 
-        vec2 i0 = fuv + vec2(0.5/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
-        vec2 i1 = fuv + vec2(1.5/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
+        vec2 i0 = pxCoord(pc + vec2(0,0), gq);
+        vec2 i1 = pxCoord(pc + vec2(1,0), gq);
         vec4 g0 = texture2D(gridTex, i0);
         vec4 g1 = texture2D(gridTex, i1);
         vec2 ra = vec2(parseF32BE(g0), parseF32BE(g1));
@@ -130,9 +136,9 @@ function build(n) {
         float line = 0.0;
         float match = 0.0;
         for (int i = 0; i < ${n}; i++) {
-          vec2 i2 = fuv + vec2((2.5+float(i)*3.0)/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
-          vec2 i3 = fuv + vec2((3.5+float(i)*3.0)/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
-          vec2 i4 = fuv + vec2((4.5+float(i)*3.0)/(gridGrid.x*(3.0*gridN+2.0)),0.5/gridGrid.y);
+          vec2 i2 = pxCoord(pc + vec2(2.0+float(i)*3.0,0), gq);
+          vec2 i3 = pxCoord(pc + vec2(3.0+float(i)*3.0, 0), gq);
+          vec2 i4 = pxCoord(pc + vec2(4.0+float(i)*3.0, 0), gq);
           vec4 g2 = texture2D(gridTex, i2);
           vec4 g3 = texture2D(gridTex, i3);
           vec4 g4 = texture2D(gridTex, i4);
@@ -143,21 +149,21 @@ function build(n) {
           vec2 b0 = readBz(curveTex, curveSize, index-1.0, 0.0);
           vec2 b1 = readBz(curveTex, curveSize, index-1.0, 1.0);
           vec2 b2 = readBz(curveTex, curveSize, index-1.0, 2.0);
-          vec2 fd = d-fuv*gridSize;
+          vec2 fd = d-fuv*gridUnits;
           x += raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
 
           float bd = length(bdist(b0-(p+d),b1-(p+d),b2-(p+d)));
-          line += step(bd,10.0);
+          //line += step(bd,10.0);
           //line += step(50.0,bd);
         }
-        float b = step(0.95,(uv.x-fuv.x)*gridGrid.x) * rax;
+        float b = step(0.95,(uv.x-fuv.x)*gridSize.x) * rax;
         float f = max(
-          step(0.98,(uv.y-fuv.y)*gridGrid.y),
-          step(0.98,(uv.x-fuv.x)*gridGrid.x)
+          step(0.98,(uv.y-fuv.y)*gridSize.y),
+          step(0.98,(uv.x-fuv.x)*gridSize.x)
         )*0.1;
         //gl_FragColor = vec4(vec3(mod(x,2.0),match*0.5,b)*f+(f-vec3(0.8)),1);
-        gl_FragColor = vec4(vec3(mod(x,2.0)),1);
-        //gl_FragColor = vec4(vec3(mod(x,2.0),line,match*0.5)+f,1);
+        //gl_FragColor = vec4(vec3(mod(x,2.0)),1);
+        gl_FragColor = vec4(vec3(mod(x,2.0),line,match*0.5)+f,1);
       }
     `,
     vert: `
@@ -173,8 +179,9 @@ function build(n) {
       curveTex: regl.prop('curves.texture'),
       curveSize: regl.prop('curves.size'),
       gridTex: regl.prop('grid.texture'),
-      gridSize: regl.prop('grid.size'),
-      gridGrid: regl.prop('grid.grid'),
+      gridUnits: regl.prop('grid.units'),
+      gridSize: regl.prop('grid.grid'),
+      gridDim: regl.prop('grid.dimension'),
       gridN: n,
       unitsPerEm: regl.prop('unitsPerEm'),
     },
