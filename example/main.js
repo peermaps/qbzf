@@ -16,6 +16,7 @@ var data = { curves: null, grid: null }
   data.grid = qbzf.write(qbzf.measure({
     text: q.get('text') || 'W',
     padding: (q.get('padding') || '0,0').split(',').map(Number),
+    offset: (q.get('offset') || '0,0').split(',').map(Number),
     n: 6,
   }))
   data.grid.texture = regl.texture(data.grid)

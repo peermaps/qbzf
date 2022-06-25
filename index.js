@@ -15,8 +15,9 @@ var rect = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
 var l0 = [0,0,0,0], l1 = [0,0,0,0]
 var origin = [0,0]
-var defaultPadding = [0,0,0,0]
 var padding0 = [0,0,0,0]
+var defaultPadding = [0,0,0,0]
+var defaultOffset = [0,0]
 
 module.exports = QBZF
 
@@ -25,7 +26,6 @@ function QBZF(src, opts) {
   if (!opts) opts = {}
   this._glyphs = new Map
   this._matches = new Map
-  this._iv = new Map
   this._offsets = new Map
   this._index = 0
   this._density = opts.density ?? [150,150]
@@ -141,6 +141,7 @@ QBZF.prototype._buildCurves = function () {
 QBZF.prototype.measure = function (opts) {
   var density = opts.density ?? this._density
   var padding = opts.padding ?? defaultPadding
+  var xoffset = opts.offset ?? defaultOffset
   if (padding.length === 2) {
     padding = vec4set(padding0, padding[0], padding[1], padding[0], padding[1])
   }
@@ -160,40 +161,73 @@ QBZF.prototype.measure = function (opts) {
   units[0] = Math.max(units[0],bbox[2]) - bbox[0] + padding[0] + padding[2] + 2
   units[1] = bbox[3] - bbox[1] + padding[1] + padding[3] + 2
   var grid = [Math.ceil(units[0]/density[0]),Math.ceil(units[1]/density[1])]
-  var offset = [padding[0]-bbox[0]+1,padding[1]-bbox[1]+1]
+  var offset = [xoffset[0]+padding[0]-bbox[0]+1,xoffset[1]+padding[1]-bbox[1]+1]
   return Object.assign({}, opts, { units, grid, offset, bbox })
 }
 
 QBZF.prototype.write = function (opts) {
+  var start = Date.now()
   var units = opts.units
   var grid = opts.grid
   var n = opts.n
   var text = opts.text
+  this._matches.clear()
+  var offset = opts.offset || origin
+  var x = offset[0]
+  var y = offset[1]
+  var cursor = {
+    iv: new Map,
+    units,
+    grid,
+    cells: new Map,
+    n: 0
+  }
+  for (var i = 0; i < text.length; i++) {
+    // todo: lookahead for multi-codepoint
+    var c = text.charCodeAt(i)
+    x += this._stamp(c, x, y, cursor)
+  }
+  //console.log(cursor)
+  var n = cursor.n
   var q = n*3+2
   var l = grid[0]*grid[1]*q
   var width = Math.ceil(Math.sqrt(l)/q)*q
   var height = Math.ceil(l/width)
+  //console.log(width,'x',height)
   var length = width * height * 4
   var data = opts.data ?? new Uint8Array(length)
-  this._matches.clear()
   if (data.length < length) {
     throw new Error(`insufficient supplied data in qbzf.write. required: ${length} received: ${data.length}`)
   }
   if (data.length > length) {
     data = data.subarray(0,length)
   }
-  var offset = opts.offset || origin
-  var x = offset[0]
-  var y = offset[1]
-  for (var i = 0; i < text.length; i++) {
-    // todo: lookahead for multi-codepoint
-    var c = text.charCodeAt(i)
-    x += this._stamp(c, x, y, units, grid, n, data)
+  for (var gy = 0; gy < grid[1]; gy++) {
+    for (var gx = 0; gx < grid[0]; gx++) {
+      var gk = gx+gy*grid[0]
+      var cells = cursor.cells.get(gk)
+      if (cells !== undefined) {
+        for (var i = 0; i < cells.length; i++) {
+          var offset = (gk*(n*3+2)+2+i*3)*4
+          writeU24(data, offset+0, cells[i][0])
+          writeF32(data, offset+4, cells[i][1])
+          writeF32(data, offset+8, cells[i][2])
+        }
+      }
+      var iv = cursor.iv.get(gk)
+      if (iv !== undefined) {
+        var offset = (gx+gy*grid[0])*(n*3+2)*4
+        writeF32(data, offset+0, iv[0])
+        writeF32(data, offset+4, iv[1])
+      }
+    }
   }
+  console.log(Date.now()-start)
   return { data, width, height, units, grid, n, dimension: [width,height] }
 }
 
-QBZF.prototype._stamp = function (code, sx, sy, units, grid, n, data) {
+QBZF.prototype._stamp = function (code, sx, sy, cursor) {
+  var units = cursor.units, grid = cursor.grid, cells = cursor.cells
   var g = this._glyphs.get(String(code))
   if (g === undefined) throw new Error(`todo: glyph or hook for code not found: ${code}`)
   var px = sx + g.bbox[0], py = sy + g.bbox[1]
@@ -249,7 +283,7 @@ QBZF.prototype._stamp = function (code, sx, sy, units, grid, n, data) {
         }
       }
       rc.sort(cmp)
-      var iv = this._iv.get(gk) ?? []
+      var iv = cursor.iv.get(gk) ?? []
       var q = 0
       if (urc % 2 === 0 && rc.length === 0) {
         q = 1
@@ -273,17 +307,18 @@ QBZF.prototype._stamp = function (code, sx, sy, units, grid, n, data) {
         iv.push(rect[3])
       }
 
+      var cells = cursor.cells.get(gk)
+      if (cells === undefined) {
+        cells = []
+        cursor.cells.set(gk, cells)
+      }
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
         if (!curveRectIntersect(c,rect,px-g.bbox[0],py-g.bbox[1])) {
           continue
         }
-        if (m >= n) throw new Error(`grid density overflow from n=${n} grid=[${grid[0]},${grid[1]}]`)
-        var offset = (gk*(n*3+2)+2+m*3)*4
-        var index = g.indexes[i]+1
-        writeU24(data, offset+0, index)
-        writeF32(data, offset+4, rect[0]-px)
-        writeF32(data, offset+8, rect[1]-py)
+        cells.push([g.indexes[i]+1,rect[0]-px,rect[1]-py])
+        cursor.n = Math.max(cursor.n, cells.length)
         m++
       }
       this._matches.set(gk, m)
@@ -302,11 +337,7 @@ QBZF.prototype._stamp = function (code, sx, sy, units, grid, n, data) {
           console.log('TODO',gx,gy,iv)
         }
       }
-
-      this._iv.set(gk, iv)
-      var offset = (gx+gy*grid[0])*(n*3+2)*4
-      writeF32(data, offset+0, y0-rect[1])
-      writeF32(data, offset+4, y1-rect[1])
+      cursor.iv.set(gk, [y0-rect[1],y1-rect[1]])
     }
   }
   return g.advanceWidth - g.leftSideBearing
