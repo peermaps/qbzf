@@ -74,9 +74,8 @@ function build(n) {
       vec2 pxCoord(vec2 p, vec2 size, vec2 dim) {
         //return (p + vec2(0.5)) / size;
         float offset = floor(p.x+0.5) + floor(p.y+0.5)*size.x;
-        //float x = floor(mod(offset, dim.x));
-        float y = floor(offset / dim.x);
-        float x = floor(offset - y*dim.x);
+        float y = floor((offset+0.5) / dim.x);
+        float x = floor(offset - y*dim.x + 0.5);
         return (vec2(x,y)+vec2(0.5)) / dim;
       }
 
