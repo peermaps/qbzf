@@ -26,7 +26,8 @@ function QBZF(src, opts) {
   if (!opts) opts = {}
   this._glyphs = new Map
   this._matches = new Map
-  this._offsets = new Map
+  this._iv = new Map
+  this._cells = new Map
   this._index = 0
   this._density = opts.density ?? [150,150]
   this.unitsPerEm = 0
@@ -175,13 +176,7 @@ QBZF.prototype.write = function (opts) {
   var offset = opts.offset || origin
   var x = offset[0]
   var y = offset[1]
-  var cursor = {
-    iv: new Map,
-    units,
-    grid,
-    cells: new Map,
-    n: 0
-  }
+  var cursor = { units, grid, n: 0 }
   for (var i = 0; i < text.length; i++) {
     // todo: lookahead for multi-codepoint
     var c = text.charCodeAt(i)
@@ -205,7 +200,7 @@ QBZF.prototype.write = function (opts) {
   for (var gy = 0; gy < grid[1]; gy++) {
     for (var gx = 0; gx < grid[0]; gx++) {
       var gk = gx+gy*grid[0]
-      var cells = cursor.cells.get(gk)
+      var cells = this._cells.get(gk)
       if (cells !== undefined) {
         for (var i = 0; i < cells.length; i++) {
           var offset = (gk*(n*3+2)+2+i*3)*4
@@ -214,7 +209,7 @@ QBZF.prototype.write = function (opts) {
           writeF32(data, offset+8, cells[i][2])
         }
       }
-      var iv = cursor.iv.get(gk)
+      var iv = this._iv.get(gk)
       if (iv !== undefined) {
         var offset = (gx+gy*grid[0])*(n*3+2)*4
         writeF32(data, offset+0, iv[0])
@@ -222,7 +217,9 @@ QBZF.prototype.write = function (opts) {
       }
     }
   }
-  console.log(Date.now()-start)
+  this._cells.clear()
+  this._iv.clear()
+  console.log('n=',n, Date.now()-start)
   return { data, width, height, units, grid, n, dimension: [width,height] }
 }
 
@@ -283,7 +280,7 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
         }
       }
       rc.sort(cmp)
-      var iv = cursor.iv.get(gk) ?? []
+      var iv = this._iv.get(gk) ?? []
       var q = 0
       if (urc % 2 === 0 && rc.length === 0) {
         q = 1
@@ -307,10 +304,10 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
         iv.push(rect[3])
       }
 
-      var cells = cursor.cells.get(gk)
+      var cells = this._cells.get(gk)
       if (cells === undefined) {
         cells = []
-        cursor.cells.set(gk, cells)
+        this._cells.set(gk, cells)
       }
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
@@ -337,7 +334,7 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
           console.log('TODO',gx,gy,iv)
         }
       }
-      cursor.iv.set(gk, [y0-rect[1],y1-rect[1]])
+      this._iv.set(gk, [y0-rect[1],y1-rect[1]])
     }
   }
   return g.advanceWidth - g.leftSideBearing
