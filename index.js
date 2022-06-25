@@ -15,7 +15,7 @@ var rect = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
 var l0 = [0,0,0,0], l1 = [0,0,0,0]
 var origin = [0,0]
-var defaultPadding = [1,1,1,1]
+var defaultPadding = [0,0,0,0]
 var padding0 = [0,0,0,0]
 
 module.exports = QBZF
@@ -157,10 +157,10 @@ QBZF.prototype.measure = function (opts) {
     bbox[1] = Math.min(bbox[1], g.bbox[1])
     bbox[3] = Math.max(bbox[3], g.bbox[3])
   }
-  units[0] = Math.max(units[0],bbox[2]) - bbox[0] + padding[0] + padding[2]
-  units[1] = bbox[3] - bbox[1] + padding[1] + padding[3]
+  units[0] = Math.max(units[0],bbox[2]) - bbox[0] + padding[0] + padding[2] + 2
+  units[1] = bbox[3] - bbox[1] + padding[1] + padding[3] + 2
   var grid = [Math.ceil(units[0]/density[0]),Math.ceil(units[1]/density[1])]
-  var offset = [padding[0]-bbox[0],padding[1]-bbox[1]]
+  var offset = [padding[0]-bbox[0]+1,padding[1]-bbox[1]+1]
   return Object.assign({}, opts, { units, grid, offset, bbox })
 }
 
