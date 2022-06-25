@@ -26,7 +26,7 @@ function QBZF(src, opts) {
   this._iv = new Map
   this._offsets = new Map
   this._index = 0
-  this._density = opts.density ?? [200,200]
+  this._density = opts.density ?? [150,150]
   this.unitsPerEm = 0
   this._epsilon = opts.epsilon ?? 1e-8
   this._parse(src)
@@ -138,28 +138,28 @@ QBZF.prototype._buildCurves = function () {
 
 QBZF.prototype.measure = function (opts) {
   var density = opts.density ?? this._density
-  var size = [0,0]
+  var units = [0,0]
   var bbox = [Infinity,Infinity,-Infinity,-Infinity]
   var text = opts.text ?? ''
   for (var i = 0; i < text.length; i++) {
     var code = text.charCodeAt(i)
     var g = this._glyphs.get(String(code))
-    bbox[0] = Math.min(bbox[0], size[0] + g.bbox[0])
-    bbox[2] = Math.max(bbox[2], size[0] + g.bbox[2])
-    size[0] += g.advanceWidth - g.leftSideBearing
-    bbox[2] = Math.max(bbox[2], size[0])
+    bbox[0] = Math.min(bbox[0], units[0] + g.bbox[0])
+    bbox[2] = Math.max(bbox[2], units[0] + g.bbox[2])
+    units[0] += g.advanceWidth - g.leftSideBearing
+    bbox[2] = Math.max(bbox[2], units[0])
     bbox[1] = Math.min(bbox[1], g.bbox[1])
     bbox[3] = Math.max(bbox[3], g.bbox[3])
   }
-  size[0] = Math.max(size[0],bbox[2]) - bbox[0] + 1
-  size[1] = bbox[3] - bbox[1] + 1
-  var grid = [Math.ceil(size[0]/density[0]),Math.ceil(size[1]/density[1])]
+  units[0] = Math.max(units[0],bbox[2]) - bbox[0] + 1
+  units[1] = bbox[3] - bbox[1] + 1
+  var grid = [Math.ceil(units[0]/density[0]),Math.ceil(units[1]/density[1])]
   var offset = [-bbox[0],-bbox[1]]
-  return Object.assign({}, opts, { size, grid, offset, bbox })
+  return Object.assign({}, opts, { units, grid, offset, bbox })
 }
 
 QBZF.prototype.write = function (opts) {
-  var size = opts.size
+  var units = opts.units
   var grid = opts.grid
   var n = opts.n
   var text = opts.text
@@ -178,27 +178,28 @@ QBZF.prototype.write = function (opts) {
   for (var i = 0; i < text.length; i++) {
     // todo: lookahead for multi-codepoint
     var c = text.charCodeAt(i)
-    x += this._stamp(c, x, y, size, grid, n, data)
+    x += this._stamp(c, x, y, units, grid, n, data)
   }
-  return { data, width: grid[0]*(n*3+2), height: grid[1], size, grid, n }
+  var width = grid[0]*(n*3+2), height = grid[1]
+  return { data, width, height, units, grid, n, dimension: [width,height] }
 }
 
-QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
+QBZF.prototype._stamp = function (code, sx, sy, units, grid, n, data) {
   var g = this._glyphs.get(String(code))
   if (g === undefined) throw new Error(`todo: glyph or hook for code not found: ${code}`)
   var px = sx + g.bbox[0], py = sy + g.bbox[1]
-  var xstart = Math.max(0, Math.floor((px + g.bbox[0] - g.leftSideBearing) / size[0] * grid[0]))
-  var xend = Math.ceil((px + g.bbox[2] - g.leftSideBearing) / size[0] * grid[0])
-  var ystart = Math.max(0, Math.floor((sy + g.bbox[1]) / size[1] * grid[1]))
-  var yend = Math.min(grid[1],Math.ceil((sy + g.bbox[3]) / size[1] * grid[1]))
-  var sg0 = size[0]/grid[0]
-  var sg1 = size[1]/grid[1]
+  var xstart = Math.max(0, Math.floor((px + g.bbox[0] - g.leftSideBearing) / units[0] * grid[0]))
+  var xend = Math.ceil((px + g.bbox[2] - g.leftSideBearing) / units[0] * grid[0])
+  var ystart = Math.max(0, Math.floor((sy + g.bbox[1]) / units[1] * grid[1]))
+  var yend = Math.min(grid[1],Math.ceil((sy + g.bbox[3]) / units[1] * grid[1]))
+  var sg0 = units[0]/grid[0]
+  var sg1 = units[1]/grid[1]
   for (var gy = ystart; gy < yend; gy++) {
     for (var gx = xstart; gx < xend; gx++) {
-      rect[0] = gx/grid[0]*size[0]
-      rect[1] = gy/grid[1]*size[1]
-      rect[2] = (gx+1)/grid[0]*size[0]
-      rect[3] = (gy+1)/grid[1]*size[1]
+      rect[0] = gx/grid[0]*units[0]
+      rect[1] = gy/grid[1]*units[1]
+      rect[2] = (gx+1)/grid[0]*units[0]
+      rect[3] = (gy+1)/grid[1]*units[1]
       var r0 = rect[0] - px + g.bbox[0]
       var r1 = rect[1] - py + g.bbox[1]
       var r2 = rect[2] - px + g.bbox[0]
@@ -209,7 +210,7 @@ QBZF.prototype._stamp = function (code, sx, sy, size, grid, n, data) {
       var urc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        urc += this._countRaycast(r2,r3,c,size[1])
+        urc += this._countRaycast(r2,r3,c,units[1])
       }
       var rc = []
       for (var i = 0; i < g.curves.length; i++) {
