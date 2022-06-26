@@ -29,7 +29,7 @@ function QBZF(src, opts) {
   this._iv = new Map
   this._cells = new Map
   this._index = 0
-  this._density = opts.density ?? [150,150]
+  this._density = opts.density ?? [250,250]
   this.unitsPerEm = 0
   this._epsilon = opts.epsilon ?? 1e-8
   this._parse(src)
@@ -182,13 +182,11 @@ QBZF.prototype.write = function (opts) {
     var c = text.charCodeAt(i)
     x += this._stamp(c, x, y, cursor)
   }
-  //console.log(cursor)
   var n = cursor.n
   var q = n*3+2
   var l = grid[0]*grid[1]*q
   var width = Math.ceil(Math.sqrt(l)/q)*q
   var height = Math.ceil(l/width)
-  //console.log(width,'x',height)
   var length = width * height * 4
   var data = opts.data ?? new Uint8Array(length)
   if (data.length < length) {
@@ -219,7 +217,6 @@ QBZF.prototype.write = function (opts) {
   }
   this._cells.clear()
   this._iv.clear()
-  console.log('n=',n, Date.now()-start)
   return { data, width, height, units, grid, n, dimension: [width,height] }
 }
 
@@ -319,7 +316,7 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
         m++
       }
       this._matches.set(gk, m)
-      var y0 = 0, y1 = 0
+      var y0 = rect[1], y1 = rect[1]
       if (iv.length > 0) {
         mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
         if (iv.length === 2) {
@@ -342,8 +339,12 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
 
 QBZF.prototype._countRaycast = function (x, y, c, xfar) {
   vec2set(v0,x,y)
-  if (Math.abs(c[1]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? 1 : -1)
-  else if (Math.abs(c[5]-v0[1]) < this._epsilon) v0[1] += this._epsilon * (c[1] < c[5] ? -1 : 1)
+  if (c.length === 6 && Math.abs(c[1]-v0[1]) < this._epsilon) {
+    v0[1] += this._epsilon
+  }
+  if (c.length === 6 && Math.abs(c[5]-v0[1]) < this._epsilon) {
+    v0[1] += this._epsilon
+  }
   return countRaycast(v0, c, xfar, this._epsilon)
 }
 
@@ -410,7 +411,7 @@ function countRaycast(p, c, xfar, epsilon) {
     vec2set(v3,p[0],p[1])
     vec2set(v4,xfar,p[1])
     if (collinear(v3,v4,v1,epsilon) || collinear(v3,v4,v2,epsilon)) {
-      //console.log('collinear', p, c)
+      // ...
     } else if (lsi(v0,v1,v2,v3,v4)) count++
   } else {
     var n = raycast(v0, y, c[1], c[3], c[5])
