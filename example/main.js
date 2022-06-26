@@ -88,16 +88,22 @@ function build(n) {
         return mix(mix(b0,b1,t),mix(b1,b2,t),t);
       }
       vec2 ldist(vec2 p, vec2 l1, vec2 l2) {
-        vec2 ld = l2 -l1;
-        float t = ((p.x - l1.x) * ld.x + (p.y - l1.y) * ld.y) / (ld.x*ld.x + ld.y*ld.y);
+        vec2 ld = l2 - l1;
+        float d = ld.x*ld.x + ld.y*ld.y;
+        float t = ((p.x - l1.x) * ld.x + (p.y - l1.y) * ld.y) / d;
         t = max(0.0,min(1.0,t));
         return p - l1 - t*ld;
       }
+      float collinear(vec2 a, vec2 b, vec2 c) {
+        float ab = distance(a,b);
+        float bc = distance(b,c);
+        float ac = distance(a,c);
+        return abs(ac - ab - bc);
+      }
       vec2 bdist(vec2 b0, vec2 b1, vec2 b2) {
-        if (distance(b0,b1) < 1e-8) {
-          return vec2(ldist(vec2(0,0), b0, b2));
+        if (min(distance(b0,b1),collinear(b0,b1,b2)) < 0.5) {
+          return vec2(ldist(vec2(0),b0,b2));
         }
-        float epsilon = 0.01;
         float a = det(b0,b2), b = 2.0*det(b1,b0), d = 2.0*det(b2,b1);
         float f = b*d-a*a;
         vec2 d21 = b2-b1, d10 = b1-b0, d20 = b2-b0;
@@ -160,7 +166,7 @@ function build(n) {
           x += raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
 
           float bd = length(bdist(b0-(p+d),b1-(p+d),b2-(p+d)));
-          line += step(bd,strokeWidth);
+          line = max(line, step(bd,strokeWidth));
         }
         float b = step(0.95,(uv.x-fuv.x)*gridSize.x) * rax;
         float f = max(
