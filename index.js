@@ -12,6 +12,7 @@ var ieee754 = require('ieee754')
 
 var tri = [[0,0],[0,0],[0,0]]
 var rect = [0,0,0,0]
+var rect0 = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
 var l0 = [0,0,0,0], l1 = [0,0,0,0]
 var origin = [0,0]
@@ -229,6 +230,7 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
   var g = this._glyphs.get(String(code))
   if (g === undefined) throw new Error(`todo: glyph or hook for code not found: ${code}`)
   var px = sx + g.bbox[0], py = sy + g.bbox[1]
+  var swx = cursor.strokeWidth, swy = cursor.strokeWidth
   var xstart = Math.max(0, Math.floor((px + g.bbox[0] - g.leftSideBearing) / units[0] * grid[0]))
   var xend = Math.ceil((px + g.bbox[2] - g.leftSideBearing) / units[0] * grid[0])
   var ystart = Math.max(0, Math.floor((sy + g.bbox[1]) / units[1] * grid[1]))
@@ -310,9 +312,10 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
         cells = []
         this._cells.set(gk, cells)
       }
+      vec4set(rect0, rect[0]-swx, rect[1]-swy, rect[2]+swx, rect[3]+swy)
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        if (!curveRectIntersect(c,rect,px-g.bbox[0],py-g.bbox[1])) {
+        if (!curveRectIntersect(c,rect0,px-g.bbox[0],py-g.bbox[1])) {
           continue
         }
         cells.push([g.indexes[i]+1,rect[0]-px,rect[1]-py])
