@@ -143,10 +143,17 @@ QBZF.prototype._buildCurves = function () {
 QBZF.prototype.measure = function (opts) {
   var density = opts.density ?? this._density
   var padding = opts.padding ?? defaultPadding
+  var strokeWidth = opts.strokeWidth ?? 50
   var xoffset = opts.offset ?? defaultOffset
   if (padding.length === 2) {
     padding = vec4set(padding0, padding[0], padding[1], padding[0], padding[1])
+  } else {
+    padding = vec4set(padding0, padding[0], padding[1], padding[2], padding[3])
   }
+  padding[0] += strokeWidth
+  padding[1] += strokeWidth
+  padding[2] += strokeWidth
+  padding[3] += strokeWidth
   var units = [0,0]
   var bbox = [Infinity,Infinity,-Infinity,-Infinity]
   var text = opts.text ?? ''
@@ -172,7 +179,7 @@ QBZF.prototype.write = function (opts) {
   var units = opts.units
   var grid = opts.grid
   var n = opts.n
-  var strokeWidth = opts.strokeWidth ?? 50
+  var strokeWidth = opts.strokeWidth ?? 0
   var text = opts.text
   this._matches.clear()
   var offset = opts.offset || origin
