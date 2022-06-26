@@ -155,7 +155,7 @@ QBZF.prototype.measure = function (opts) {
     var g = this._glyphs.get(String(code))
     bbox[0] = Math.min(bbox[0], units[0] + g.bbox[0])
     bbox[2] = Math.max(bbox[2], units[0] + g.bbox[2])
-    units[0] += g.advanceWidth - g.leftSideBearing
+    units[0] += g.advanceWidth
     bbox[2] = Math.max(bbox[2], units[0])
     bbox[1] = Math.min(bbox[1], g.bbox[1])
     bbox[3] = Math.max(bbox[3], g.bbox[3])
@@ -341,7 +341,7 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
       this._iv.set(gk, [y0-rect[1],y1-rect[1]])
     }
   }
-  return g.advanceWidth - g.leftSideBearing
+  return g.advanceWidth
 }
 
 QBZF.prototype._countRaycast = function (x, y, c, xfar) {
