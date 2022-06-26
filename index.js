@@ -171,12 +171,13 @@ QBZF.prototype.write = function (opts) {
   var units = opts.units
   var grid = opts.grid
   var n = opts.n
+  var strokeWidth = opts.strokeWidth ?? 50
   var text = opts.text
   this._matches.clear()
   var offset = opts.offset || origin
   var x = offset[0]
   var y = offset[1]
-  var cursor = { units, grid, n: 0 }
+  var cursor = { units, grid, strokeWidth, n: 0 }
   for (var i = 0; i < text.length; i++) {
     // todo: lookahead for multi-codepoint
     var c = text.charCodeAt(i)
@@ -217,7 +218,10 @@ QBZF.prototype.write = function (opts) {
   }
   this._cells.clear()
   this._iv.clear()
-  return { data, width, height, units, grid, n, dimension: [width,height] }
+  return {
+    data, width, height, dimension: [width,height],
+    units, grid, n, strokeWidth
+  }
 }
 
 QBZF.prototype._stamp = function (code, sx, sy, cursor) {

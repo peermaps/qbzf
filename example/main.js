@@ -17,6 +17,7 @@ var data = { curves: null, grid: null }
     text: q.get('text') || 'W',
     padding: (q.get('padding') || '0,0').split(',').map(Number),
     offset: (q.get('offset') || '0,0').split(',').map(Number),
+    strokeWidth: 40,
   }))
   data.grid.texture = regl.texture(data.grid)
   data.unitsPerEm = qbzf.unitsPerEm
@@ -38,7 +39,7 @@ function build(n) {
       varying vec2 vpos;
       uniform sampler2D curveTex, gridTex;
       uniform vec2 curveSize, gridUnits, gridSize, gridDim;
-      uniform float gridN;
+      uniform float gridN, strokeWidth;
 
       float parseU16BE(vec2 v) {
         return v.x*65280.0 + v.y*255.0;
@@ -159,8 +160,7 @@ function build(n) {
           x += raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
 
           float bd = length(bdist(b0-(p+d),b1-(p+d),b2-(p+d)));
-          line += step(bd,10.0);
-          //line += step(50.0,bd);
+          line += step(bd,strokeWidth);
         }
         float b = step(0.95,(uv.x-fuv.x)*gridSize.x) * rax;
         float f = max(
@@ -188,7 +188,8 @@ function build(n) {
       gridUnits: regl.prop('grid.units'),
       gridSize: regl.prop('grid.grid'),
       gridDim: regl.prop('grid.dimension'),
-      gridN: n,
+      gridN: regl.prop('grid.n'),
+      strokeWidth: regl.prop('grid.strokeWidth'),
       unitsPerEm: regl.prop('unitsPerEm'),
     },
     attributes: {
