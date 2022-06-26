@@ -247,7 +247,7 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
       var urc = 0
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        urc += this._countRaycast(r2,r3,c,units[1])
+        urc += this._countRaycast(r2,r3,c,units[0]+1000)
       }
       var rc = []
       for (var i = 0; i < g.curves.length; i++) {
