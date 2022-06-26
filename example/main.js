@@ -86,11 +86,11 @@ function build(n) {
       vec2 bz(vec2 b0, vec2 b1, vec2 b2, float t) {
         return mix(mix(b0,b1,t),mix(b1,b2,t),t);
       }
-      float ldist(vec2 p, vec2 l1, vec2 l2) {
+      vec2 ldist(vec2 p, vec2 l1, vec2 l2) {
         vec2 ld = l2 -l1;
         float t = ((p.x - l1.x) * ld.x + (p.y - l1.y) * ld.y) / (ld.x*ld.x + ld.y*ld.y);
         t = max(0.0,min(1.0,t));
-        return length(p - l1 - t*ld);
+        return p - l1 - t*ld;
       }
       vec2 bdist(vec2 b0, vec2 b1, vec2 b2) {
         if (distance(b0,b1) < 1e-8) {
@@ -159,7 +159,7 @@ function build(n) {
           x += raycast(p+d, b0, b1, b2, bounds + vec4(fd,fd));
 
           float bd = length(bdist(b0-(p+d),b1-(p+d),b2-(p+d)));
-          //line += step(bd,10.0);
+          line += step(bd,10.0);
           //line += step(50.0,bd);
         }
         float b = step(0.95,(uv.x-fuv.x)*gridSize.x) * rax;
