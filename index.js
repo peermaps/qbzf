@@ -10,9 +10,7 @@ var bz = require('./lib/bz.js')
 var bzli = require('./lib/bzli.js')
 var ieee754 = require('ieee754')
 
-var tri = [[0,0],[0,0],[0,0]]
-var rect = [0,0,0,0]
-var rect0 = [0,0,0,0]
+var rect0 = [0,0,0,0], rect1 = [0,0,0,0]
 var v0 = [0,0], v1 = [0,0], v2 = [0,0], v3 = [0,0], v4 = [0,0]
 var l0 = [0,0,0,0], l1 = [0,0,0,0]
 var origin = [0,0]
@@ -246,14 +244,14 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
   var sg1 = units[1]/grid[1]
   for (var gy = ystart; gy < yend; gy++) {
     for (var gx = xstart; gx < xend; gx++) {
-      rect[0] = gx/grid[0]*units[0]
-      rect[1] = gy/grid[1]*units[1]
-      rect[2] = (gx+1)/grid[0]*units[0]
-      rect[3] = (gy+1)/grid[1]*units[1]
-      var r0 = rect[0] - px + g.bbox[0]
-      var r1 = rect[1] - py + g.bbox[1]
-      var r2 = rect[2] - px + g.bbox[0]
-      var r3 = rect[3] - py + g.bbox[1]
+      rect0[0] = gx/grid[0]*units[0]
+      rect0[1] = gy/grid[1]*units[1]
+      rect0[2] = (gx+1)/grid[0]*units[0]
+      rect0[3] = (gy+1)/grid[1]*units[1]
+      var r0 = rect0[0] - px + g.bbox[0]
+      var r1 = rect0[1] - py + g.bbox[1]
+      var r2 = rect0[2] - px + g.bbox[0]
+      var r3 = rect0[3] - py + g.bbox[1]
       var gk = gx+gy*grid[0]
       var m = this._matches.get(gk) ?? 0
 
@@ -296,22 +294,22 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
         q = 1
       } else if (urc % 2 === 1 && rc.length === 0) {
         q = 2
-        iv.push(rect[1],rect[3])
+        iv.push(rect0[1],rect0[3])
       } else if (urc % 2 === 0 && rc.length % 2 === 0) {
         q = 3
         iv = iv.concat(rc)
       } else if (urc % 2 === 0 && rc.length % 2 === 1) {
         q = 4
-        iv.push(rect[1])
+        iv.push(rect0[1])
         iv = iv.concat(rc)
       } else if (urc % 2 === 1 && rc.length % 2 === 0) {
         q = 5
         iv = iv.concat(rc)
-        iv.push(rect[1],rect[3])
+        iv.push(rect0[1],rect0[3])
       } else if (urc % 2 === 1 && rc.length % 2 === 1) {
         q = 6
         iv = iv.concat(rc)
-        iv.push(rect[3])
+        iv.push(rect0[3])
       }
 
       var cells = this._cells.get(gk)
@@ -319,33 +317,33 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
         cells = []
         this._cells.set(gk, cells)
       }
-      vec4set(rect0, rect[0]-swx, rect[1]-swy, rect[2]+swx, rect[3]+swy)
+      vec4set(rect1, rect0[0]-swx, rect0[1]-swy, rect0[2]+swx, rect0[3]+swy)
       for (var i = 0; i < g.curves.length; i++) {
         var c = g.curves[i]
-        if (!curveRectIntersect(c,rect0,px-g.bbox[0],py-g.bbox[1])) {
+        if (!curveRectIntersect(c,rect1,px-g.bbox[0],py-g.bbox[1])) {
           continue
         }
-        cells.push([g.indexes[i]+1,rect[0]-px,rect[1]-py])
+        cells.push([g.indexes[i]+1,rect0[0]-px,rect0[1]-py])
         cursor.n = Math.max(cursor.n, cells.length)
         m++
       }
       this._matches.set(gk, m)
-      var y0 = rect[1], y1 = rect[1]
+      var y0 = rect0[1], y1 = rect0[1]
       if (iv.length > 0) {
-        mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
+        mivxa(iv, iv, vec2set(v0, rect0[1], rect0[3]), 1e-8)
         if (iv.length === 2) {
-          y0 = iv[0] ?? rect[1]
-          y1 = iv[1] ?? rect[1]
+          y0 = iv[0] ?? rect0[1]
+          y1 = iv[1] ?? rect0[1]
         } else if (iv.length === 4) {
-          iv.push(rect[1], rect[3])
-          mivxa(iv, iv, vec2set(v0, rect[1], rect[3]), 1e-8)
-          y1 = iv[0] ?? rect[1]
-          y0 = iv[1] ?? rect[1]
+          iv.push(rect0[1], rect0[3])
+          mivxa(iv, iv, vec2set(v0, rect0[1], rect0[3]), 1e-8)
+          y1 = iv[0] ?? rect0[1]
+          y0 = iv[1] ?? rect0[1]
         } else if (iv.length > 0) {
           // console.log('TODO',gx,gy,iv)
         }
       }
-      this._iv.set(gk, [y0-rect[1],y1-rect[1]])
+      this._iv.set(gk, [y0-rect0[1],y1-rect0[1]])
     }
   }
   return g.advanceWidth
