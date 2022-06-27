@@ -238,10 +238,10 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
   if (g === undefined) throw new Error(`todo: glyph or hook for code not found: ${code}`)
   var px = sx + g.bbox[0], py = sy + g.bbox[1]
   var swx = cursor.strokeWidth, swy = cursor.strokeWidth
-  var xstart = Math.max(0, Math.floor((px + g.bbox[0] - g.leftSideBearing) / units[0] * grid[0]))
-  var xend = Math.ceil((px + g.bbox[2] - g.leftSideBearing) / units[0] * grid[0])
-  var ystart = Math.max(0, Math.floor((sy + g.bbox[1]) / units[1] * grid[1]))
-  var yend = Math.min(grid[1],Math.ceil((sy + g.bbox[3]) / units[1] * grid[1]))
+  var xstart = Math.max(0, Math.floor((px + g.bbox[0] - g.leftSideBearing - swx) / units[0] * grid[0]))
+  var xend = Math.ceil((px + g.bbox[2] - g.leftSideBearing + swx) / units[0] * grid[0])
+  var ystart = Math.max(0, Math.floor((sy + g.bbox[1] - swy) / units[1] * grid[1]))
+  var yend = Math.min(grid[1],Math.ceil((sy + g.bbox[3] + swy) / units[1] * grid[1]))
   var sg0 = units[0]/grid[0]
   var sg1 = units[1]/grid[1]
   for (var gy = ystart; gy < yend; gy++) {
@@ -342,7 +342,7 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
           y1 = iv[0] ?? rect[1]
           y0 = iv[1] ?? rect[1]
         } else if (iv.length > 0) {
-          console.log('TODO',gx,gy,iv)
+          // console.log('TODO',gx,gy,iv)
         }
       }
       this._iv.set(gk, [y0-rect[1],y1-rect[1]])
