@@ -69,9 +69,10 @@ if (argv.indexes !== undefined) {
 }
 
 if (indexes.length === 0) {
-  indexes = Object.keys(font.glyphs.glyphs)
+  indexes = Object.keys(font.glyphs.glyphs).map(Number)
 }
 uniq(indexes)
+indexes.sort((a,b) => a < b ? -1 : +1)
 
 var index = 0
 if (argv.ls) {
