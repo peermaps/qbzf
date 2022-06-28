@@ -28,7 +28,7 @@ function QBZF(src, opts) {
   this._iv = new Map
   this._cells = new Map
   this._index = 0
-  this._density = opts.density ?? [250,250]
+  this._density = opts.density ?? [200,200]
   this.unitsPerEm = 0
   this._epsilon = opts.epsilon ?? 1e-8
   this._parse(src)
@@ -111,7 +111,7 @@ QBZF.prototype._parse = function (src) {
 }
 
 QBZF.prototype._buildCurves = function () {
-  var w = Math.floor(Math.sqrt(this._index)/3)*3
+  var w = Math.max(3,Math.floor(Math.sqrt(this._index)/3)*3)
   var h = Math.ceil(this._index/w)
   var data = new Uint8Array(w*h*4)
   for (var [key,g] of this._glyphs) {
@@ -141,7 +141,7 @@ QBZF.prototype._buildCurves = function () {
 QBZF.prototype.measure = function (opts) {
   var density = opts.density ?? this._density
   var padding = opts.padding ?? defaultPadding
-  var strokeWidth = opts.strokeWidth ?? 50
+  var strokeWidth = opts.strokeWidth ?? 0
   var xoffset = opts.offset ?? defaultOffset
   if (padding.length === 2) {
     padding = vec4set(padding0, padding[0], padding[1], padding[0], padding[1])
@@ -173,7 +173,7 @@ QBZF.prototype.measure = function (opts) {
 }
 
 QBZF.prototype.write = function (opts) {
-  var start = Date.now()
+  opts = this.measure(opts)
   var units = opts.units
   var grid = opts.grid
   var n = opts.n
