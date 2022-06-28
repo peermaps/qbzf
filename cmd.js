@@ -85,7 +85,7 @@ if (argv.ls) {
       return next(null, JSON.stringify(g)+'\n')
     }
     next(null, null)
-  }), process.stdout, onerror)
+  }), outstream, onerror)
 }
 
 pump(from(function (size, next) {
@@ -104,7 +104,7 @@ pump(from(function (size, next) {
     return next(null, pack(g))
   }
   next(null, null)
-}), process.stdout, onerror)
+}), outstream, onerror)
 
 function usage() {
   console.log(`
