@@ -111,8 +111,8 @@ QBZF.prototype._parse = function (src) {
 }
 
 QBZF.prototype._buildCurves = function () {
-  var w = Math.max(3,Math.floor(Math.sqrt(this._index)/3)*3)
-  var h = Math.ceil(this._index/w)
+  var w = Math.max(90,Math.floor(Math.sqrt(this._index)/3)*3)
+  var h = Math.max(1,Math.ceil(this._index/w))
   var data = new Uint8Array(w*h*4)
   for (var [key,g] of this._glyphs) {
     for (var i = 0; i < g.curves.length; i++) {
@@ -176,7 +176,6 @@ QBZF.prototype.write = function (opts) {
   opts = this.measure(opts)
   var units = opts.units
   var grid = opts.grid
-  var n = opts.n
   var strokeWidth = opts.strokeWidth ?? 0
   var text = opts.text
   this._matches.clear()

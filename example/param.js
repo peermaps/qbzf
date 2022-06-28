@@ -1,29 +1,32 @@
+// generate font with (or similar):
+// qbzf /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf > example/font
+// dev server: budo param.js -d example -- -t glslify
+
 var glsl = require('glslify')
 var regl = require('regl')()
 var QBZF = require('../')
 
 var draw = null
 var q = new URLSearchParams(location.hash.replace(/^#/,''))
-var grid = (q.get('grid') || '20,12').split(',').map(Number)
 window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
-;(async function () {
-  var qbzf = new QBZF(new Uint8Array(await (await fetch('/font0')).arrayBuffer()))
-  //var qbzf = new QBZF(new Uint8Array(await (await fetch('/font/dvs.bzf')).arrayBuffer()))
+fetch('/font').then(r => r.arrayBuffer()).then(r => fromData(new Uint8Array(r)))
+
+function fromData(buf) {
+  var qbzf = new QBZF(buf)
   data.curves = qbzf.curves
   data.curves.texture = regl.texture(data.curves)
-  data.grid = qbzf.write(qbzf.measure({
-    text: q.get('text') || 'W',
+  data.grid = qbzf.write({
+    text: q.get('text') || 'ok',
     padding: (q.get('padding') || '0,0').split(',').map(Number),
     offset: (q.get('offset') || '0,0').split(',').map(Number),
-    strokeWidth: 40,
-  }))
+    strokeWidth: 1, // in units
+  })
   data.grid.texture = regl.texture(data.grid)
-  data.unitsPerEm = qbzf.unitsPerEm
   draw = build(data.grid.n)
   frame()
-})()
+}
 
 function frame() {
   regl.poll()
@@ -35,9 +38,9 @@ function build(n) {
   return regl({
     frag: glsl`
       precision highp float;
-      #pragma glslify: QBZF = require('../qbzf.h')
-      #pragma glslify: create_qbzf = require('../create_qbzf.glsl')
-      #pragma glslify: read_curve = require('../read_curve.glsl')
+      #pragma glslify: QBZF = require('../h')
+      #pragma glslify: create_qbzf = require('../create')
+      #pragma glslify: read_curve = require('../read')
 
       varying vec2 vpos;
       uniform sampler2D curveTex, gridTex;
@@ -50,24 +53,26 @@ function build(n) {
           uv, gridN, gridSize, gridUnits, gridDim,
           gridTex, curveSize
         );
-        float match = 0.0;
-        float b = step(0.95,(uv.x-qbzf.fuv.x)*qbzf.size.x) * qbzf.x;
         float ldist = 1e30;
         for (int i = 0; i < ${n}; i++) {
           vec4 curve = read_curve(qbzf, gridTex, curveTex, float(i));
           if (curve.x < 0.5) break;
-          qbzf.x += curve.y;
+          qbzf.count += curve.y;
           ldist = min(ldist,length(curve.zw));
-          match += 1.0;
         }
-        float line = step(ldist,strokeWidth);
-        float f = max(
-          step(0.98,(uv.y-qbzf.fuv.y)*gridSize.y),
-          step(0.98,(uv.x-qbzf.fuv.x)*gridSize.x)
-        )*0.1;
-        //gl_FragColor = vec4(vec3(mod(qbzf.x,2.0),match/3.0,b)*f+(f-vec3(0.8)),1);
-        //gl_FragColor = vec4(vec3(mod(qbzf.x,2.0)),1);
-        gl_FragColor = vec4(vec3(mod(qbzf.x,2.0),line,match/3.0)+f,1);
+        float a = 5.0; // aliasing width in font units
+        float outline = 1.0-smoothstep(strokeWidth-a,strokeWidth+a,ldist);
+
+        vec3 fill = vec3(0,0,0);
+        vec3 stroke = vec3(1,1,1);
+        vec3 bg = vec3(0.5,0,1);
+
+        vec3 c = mix(
+          mix(bg,stroke,outline),
+          mix(stroke,fill,smoothstep(ldist,0.0,a)),
+          mod(qbzf.count,2.0)
+        );
+        gl_FragColor = vec4(c,1);
       }
     `,
     vert: `
@@ -88,11 +93,8 @@ function build(n) {
       gridDim: regl.prop('grid.dimension'),
       gridN: n,
       strokeWidth: regl.prop('grid.strokeWidth'),
-      unitsPerEm: regl.prop('unitsPerEm'),
     },
-    attributes: {
-      position: [-4,-4,-4,+4,+4,+0],
-    },
+    attributes: { position: [-4,-4,-4,+4,+4,+0] },
     elements: [0,1,2],
   })
 }

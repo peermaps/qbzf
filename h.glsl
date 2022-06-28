@@ -8,7 +8,7 @@ struct QBZF {
   vec2 units;
   vec2 dim;
   vec2 curve_size;
-  float x;
+  float count;
   vec2 p;
   vec2 pc;
   vec2 ra;

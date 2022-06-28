@@ -1,5 +1,5 @@
 #pragma glslify: export(create_qbzf)
-#pragma glslify: QBZF = require('./qbzf.h')
+#pragma glslify: QBZF = require('./h.glsl')
 #pragma glslify: px_coord = require('./lib/px_coord.glsl')
 #pragma glslify: parse_f32be = require('./lib/parse_f32be.glsl')
 
@@ -15,7 +15,6 @@ QBZF create_qbzf(
   qbzf.units = units;
   qbzf.dim = dim;
   qbzf.curve_size = curve_size;
-  qbzf.x = 0.0;
   qbzf.fuv = floor(uv*qbzf.size)/qbzf.size;
   vec2 rbuv = qbzf.fuv + vec2(1)/qbzf.size;
   qbzf.bounds = vec4(qbzf.fuv*qbzf.units, rbuv*qbzf.units);
@@ -38,6 +37,6 @@ QBZF create_qbzf(
     ),
     step(ra.x, ra.y)
   );
-  qbzf.x = rax;
+  qbzf.count = rax;
   return qbzf;
 }

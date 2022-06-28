@@ -1,5 +1,5 @@
 #pragma glslify: export(read_curve)
-#pragma glslify: QBZF = require('./qbzf.h')
+#pragma glslify: QBZF = require('./h.glsl')
 #pragma glslify: px_coord = require('./lib/px_coord.glsl')
 #pragma glslify: raycast = require('./lib/raycast.glsl')
 #pragma glslify: bdist = require('./lib/bdist.glsl')
