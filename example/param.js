@@ -11,7 +11,9 @@ var q = new URLSearchParams(location.hash.replace(/^#/,''))
 window.addEventListener('resize', frame)
 
 var data = { curves: null, grid: null }
-fetch('/font').then(r => r.arrayBuffer()).then(r => fromData(new Uint8Array(r)))
+fetch(q.get('font') || '/font')
+  .then(r => r.arrayBuffer())
+  .then(r => fromData(new Uint8Array(r)))
 
 function fromData(buf) {
   var qbzf = new QBZF(buf)
