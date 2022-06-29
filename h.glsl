@@ -6,7 +6,7 @@ struct QBZF {
   vec2 size;
   vec2 qsize;
   vec2 units;
-  vec2 dim;
+  vec3 dim;
   vec2 curve_size;
   float count;
   vec2 p;
