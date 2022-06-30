@@ -16,14 +16,15 @@ function Atlas(qbzf, opts) {
 }
 
 Atlas.prototype.add = function (opts) {
-  var m = this._qbzf.measure(opts)
+  var x = opts.offset ? opts.offset[0] : 0, y = opts.offset ? opts.offset[1] : 0
+  var xopts = Object.assign({}, opts, { offset: undefined })
+  var m = this._qbzf.measure(xopts)
   var h = opts.height || 0.1
   var ux = h*m.units[0]/this._qbzf.unitsPerEm
   var uy = h*m.units[1]/this._qbzf.unitsPerEm
-  var g = this._qbzf.write(opts)
+  var g = this._qbzf.write(xopts)
   var d = this._getGrid(g.n)
   var n = d.positions.length/2
-  var x = opts.offset ? opts.offset[0] : 0, y = opts.offset ? opts.offset[1] : 0
   d.positions.push(x,y, x+ux,y, x+ux,y-uy, x,y-uy)
   d.uv.push(0,1, 1,1, 1,0, 0,0)
   d.cells.push(n+0, n+1, n+2, n+0, n+2, n+3)

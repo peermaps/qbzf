@@ -6,8 +6,7 @@ var Atlas = require('../atlas')
 var draw = null, data = null
 window.addEventListener('resize', frame)
 
-//fetch('/font/dvs.bzf').then(r => r.arrayBuffer()).then(r => fromData(new Uint8Array(r)))
-fetch('/f/font').then(r => r.arrayBuffer()).then(r => fromData(new Uint8Array(r)))
+fetch('/font').then(r => r.arrayBuffer()).then(r => fromData(new Uint8Array(r)))
 
 function fromData(buf) {
   var atlas = new Atlas(new QBZF(buf), {
@@ -33,16 +32,10 @@ function fromData(buf) {
     text: 'cooooool', offset: [0.3,0.6], height: 0.1,
     strokeWidth: 100, strokeColor: [0,1,0], fillColor: [0,0.5,0],
   })
-  var id = atlas.add({
+  atlas.add({
     text: 'meow', offset: [-0.2,-0.2], height: 0.3,
     strokeWidth: 80, strokeColor: [0.9,0.9,0.9], fillColor: [0.2,0.2,0.2],
   })
-  setTimeout(() => {
-    atlas.remove(id)
-    build(atlas)
-    frame()
-  }, 1000)
-
   build(atlas)
   var draws = {}
   atlas.grids.forEach(n => {

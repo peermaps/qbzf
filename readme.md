@@ -124,6 +124,7 @@ function build(n) {
 
 ``` js
 var QBZF = require('qbzf')
+var Atlas = require('qbzf/atlas')
 ```
 
 ``` glsl
@@ -139,7 +140,7 @@ Create a new `qbzf` instance from a `Uint8Array` of `fontSrc` (created by the qb
 * `opts.density` - default `[200,200]`
 * `opts.epsilon` - default `1e-8`
 
-## qbzf.curves
+### qbzf.curves
 
 Curve texture data with:
 
@@ -148,15 +149,15 @@ Curve texture data with:
 * `qbzf.curves.height` - height in pixels of the curve texture
 * `qbzf.curves.size` - 2-element array of `[width,height]`
 
-## qbzf.unitsPerEm
+### qbzf.unitsPerEm
 
 Font unit measurement from the original font file.
 
-## qbzf.measure(opts)
+### qbzf.measure(opts)
 
 Return only the calculated `units`, `grid`, `offset` and `bbox` without writing to a grid texture.
 
-## var grid = qbzf.write(opts)
+### var grid = qbzf.write(opts)
 
 Create a grid texture from `opts`:
 
@@ -176,19 +177,60 @@ The resulting `grid` object has:
 * `grid.grid` - dimensions of logical grid
 * `grid.n` - number of curves stored in each cell
 
-## `QBZF qbzf = create(vec2 uv, float n, vec2 size, vec2 units, vec2 dim, sampler2D grid_tex, vec2 curve_size)`
+## var atlas = Atlas(qbzf, opts)
+
+Create an `atlas` to manage multiple labels at once using one texture per each `n` and so one draw
+call per `n` along with corresponding label geometry.
+
+* `opts.attributes` - array of strings to set additional attributes in `atlas.add()` which will also
+appear alongside other records in `atlas.build()`
+
+### var id = atlas.add(opts)
+
+Add a text label with all the arguments to `qbzf.write()` plus:
+
+* `opts.height` - height of 1 em in output coordinate scale
+* `opts.location` - translation in output coordinate scale (default: `[0,0]`)
+* `opts.id` - set the id directly. must be unique
+
+Returns the id provided or an assigned unique `id` if none was provided.
+
+### atlas.remove(id)
+
+### var data = atlas.build()
+
+`data` is an object mapping `n` keys to a grid `g` with:
+
+* `g.curves` - reference to `qbzf.curves`
+* `g.positions` - vec2 attribute for coordinates in output coordinate scale
+* `g.uv` - vec2 attribute for each label's coordinates (0 to 1 in x and y)
+* `g.cells` - element indexes for triangle geometry
+* `g.offsets` - float attribute for pixel offset
+* `g.units` - vec2 attribute for size of label in font units
+* `g.size` - vec2 attribute for grid dimensions in number of cells
+* `g.id` - id assigned to label (float unless set to something else)
+
+These are merged with everything set in `opts.attributes`.
+
+## `QBZF qbzf = create(vec2 uv, float n, vec2 size, vec2 units, vec3 dim, sampler2D grid_tex, vec2 curve_size)`
 
 Create a glsl `QBZF` struct from the given parameters:
 
 * `vec2 uv` -  texture coordinates for lookup (0 to 1 in each dimension)
 * `float n` - number of curves per cell
 * `vec2 size` - dimensions of logical grid
-* `vec2 dim` - dimensions of grid in pixels
+* `vec3 dim` - dimensions of grid in pixels and pixel offset to start reading
 * `sampler2D grid_tex` - grid texture data
 * `vec2 curve_size` - dimensions of curve texture in pixels
 
 The `qbzf.count` is initialized with the number of crossings for the right support for the given
 `uv` (either 0 or 1).
+
+## `QBZF qbzf = create(vec2 uv, float n, vec2 size, vec2 units, vec2 dim, sampler2D grid_tex, vec2 curve_size)`
+
+Alias for `create(uv, n, size, units, vec3(dim,0), grid_tex, curve_size)`.
+
+This sets the offset to `0`.
 
 ## `vec4 curve = read_curve(QBZF qbzf, sampler2D grid_tex, sampler2D curve_tex, float i)`
 
