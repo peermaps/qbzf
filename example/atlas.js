@@ -6,67 +6,69 @@ var draw = null
 window.addEventListener('resize', frame)
 
 var data = {
-  curves: null,
+  curves: {},
   grid: {},
-  grids: {},
-  positions: [],
-  uv: [],
-  cells: [],
-  offsets: [],
-  units: [],
-  size: [],
-  dim: [],
-  strokeWidth: [],
 }
+fetch('/f/font').then(r => r.arrayBuffer()).then(r => fromData(new Uint8Array(r)))
 
-function addText(qbzf, text, x, y, h) {
+function addText(qbzf, text, x, y, h, strokeWidth) {
   var m = qbzf.measure({ text, offset: [x,y] })
   var ux = h*m.units[0]/qbzf.unitsPerEm
   var uy = h*m.units[1]/qbzf.unitsPerEm
-  var n = data.positions.length/2
-  data.positions.push(x,y, x+ux,y, x+ux,y-uy, x,y-uy)
-  data.uv.push(0,1, 1,1, 1,0, 0,0)
-  data.cells.push(n+0, n+1, n+2, n+0, n+2, n+3)
-  var g = qbzf.write({
-    text,
-    strokeWidth: 10,
-  })
+  var g = qbzf.write({ text, strokeWidth })
+  if (!data.grid[g.n]) {
+    data.grid[g.n] = {
+      curves: data.curves,
+      positions: [],
+      uv: [],
+      cells: [],
+      offsets: [],
+      units: [],
+      size: [],
+      dim: [],
+      strokeWidth: [],
+      grid: { texture: null },
+      grids: [],
+    }
+  }
+  var d = data.grid[g.n]
   console.log(g.n,text)
-  data.units.push(g.units,g.units,g.units,g.units)
-  data.size.push(g.grid,g.grid,g.grid,g.grid)
-  data.dim.push(g.dimension,g.dimension,g.dimension,g.dimension)
-  var sw = g.strokeWidth
-  data.strokeWidth.push(sw,sw,sw,sw)
-  if (!data.grids[g.n]) data.grids[g.n] = [g]
-  else data.grids[g.n].push(g)
+  var n = d.positions.length/2
+  d.positions.push(x,y, x+ux,y, x+ux,y-uy, x,y-uy)
+  d.uv.push(0,1, 1,1, 1,0, 0,0)
+  d.cells.push(n+0, n+1, n+2, n+0, n+2, n+3)
+  d.units.push(g.units,g.units,g.units,g.units)
+  d.size.push(g.grid,g.grid,g.grid,g.grid)
+  d.dim.push(g.dimension,g.dimension,g.dimension,g.dimension)
+  d.strokeWidth.push(strokeWidth,strokeWidth,strokeWidth,strokeWidth)
+  d.grids.push(g)
 
-  var p = data.grids[g.n][data.grids[g.n].length-2]
+  var p = d.grids[d.grids.length-2]
   g.offset = p ? p.offset + p.grid[0]*p.grid[1]*(p.n*3+2) : 0
-  data.offsets.push(g.offset, g.offset, g.offset, g.offset)
+  d.offsets.push(g.offset, g.offset, g.offset, g.offset)
 }
-
-fetch('/f/font').then(r => r.arrayBuffer()).then(r => fromData(new Uint8Array(r)))
 
 function fromData(buf) {
   var qbzf = new QBZF(buf)
-  addText(qbzf, 'hello', -0.7, 0.8, 0.2)
-  addText(qbzf, 'ok...', -0.3, 0.2, 0.2)
-  addText(qbzf, 'hmmmmmmm', 0.2, -0.7, 0.1)
-  addText(qbzf, 'what', -0.8, -0.4, 0.15)
-  data.curves = qbzf.curves
+  addText(qbzf, 'hello', -0.7, 0.8, 0.2, 40)
+  addText(qbzf, 'ok...', -0.3, 0.2, 0.2, 40)
+  addText(qbzf, 'hmmmmmmm', 0.2, -0.7, 0.1, 80)
+  addText(qbzf, 'what', -0.8, -0.4, 0.15, 50)
+  addText(qbzf, 'cooooool', 0.3, 0.6, 0.1, 100)
+  Object.assign(data.curves, qbzf.curves)
   data.curves.texture = regl.texture(data.curves)
 
   var draws = []
-  var ns = Object.keys(data.grids)
+  var ns = Object.keys(data.grid)
   for (var i = 0; i < ns.length; i++) {
-    var n = ns[i]
-    data.grid[n] = concat(data.grids[n])
-    data.grid[n].texture = regl.texture(data.grid[n])
+    var n = ns[i], d = data.grid[n]
+    Object.assign(d.grid, concat(d.grids))
+    d.grid.texture = regl.texture(d.grid)
     draws.push(build(n))
   }
   draw = function (data) {
-    for (var i = 0; i < draws.length; i++) {
-      draws[i](data)
+    for (var i = 0; i < ns.length; i++) {
+      draws[i](data.grid[ns[i]])
     }
   }
   frame()
@@ -138,8 +140,8 @@ function build(n) {
     uniforms: {
       curveTex: regl.prop('curves.texture'),
       curveSize: regl.prop('curves.size'),
-      gridTex: (c,props) => props.grid[n].texture,
-      dim: (c,props) => props.grid[n].dimension,
+      gridTex: regl.prop('grid.texture'),
+      dim: regl.prop('grid.dimension'),
       gridN: Number(n),
     },
     attributes: {
@@ -164,10 +166,10 @@ function concat(grids) {
   var height = Math.ceil(len/width)
   var data = new Uint8Array(width*height*4)
   for (var offset = 0, i = 0; i < grids.length; i++) {
-    var buf = grids[i].data, l = buf.length
+    var g = grids[i], l = g.grid[0]*g.grid[1]*(g.n*3+2)*4
     for (var j = 0; j < l; j++) {
-      data[offset++] = buf[j]
+      data[offset++] = g.data[j]
     }
   }
-  return { width, height, data, grids, dimension: [width,height] }
+  return { width, height, data, dimension: [width,height] }
 }
