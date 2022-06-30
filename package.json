@@ -1,6 +1,6 @@
 {
   "name": "qbzf",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "quadratic bezier font format for rendering in a fragment shader",
   "bin": {
     "qbzf": "cmd.js"
