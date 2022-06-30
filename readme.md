@@ -12,6 +12,8 @@ The javascript api generates textures that can be read by the shader code.
 
 # example
 
+To run this example: `budo ok.js -- -t glslify`
+
 ``` js
 var glsl = require('glslify')
 var regl = require('regl')()
