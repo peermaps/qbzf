@@ -75,6 +75,13 @@ Atlas.prototype.remove = function (id) {
   }
 }
 
+Atlas.prototype.clear = function () {
+  this.grids = []
+  this._gridSet.clear()
+  this._id.clear()
+  this._data.grid = {}
+}
+
 Atlas.prototype._getGrid = function (n) {
   if (!this._data.grid[n]) {
     var data = {

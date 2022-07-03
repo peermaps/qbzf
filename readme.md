@@ -199,6 +199,12 @@ Returns the id provided or an assigned unique `id` if none was provided.
 
 ### atlas.remove(id)
 
+Remove a label by its `id`.
+
+### atlas.clear()
+
+Remove all labels.
+
 ### var data = atlas.build()
 
 `data` is an object mapping `n` keys to a grid `g` with:
