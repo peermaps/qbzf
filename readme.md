@@ -257,18 +257,21 @@ If the number of corssings is even, you're outside the polygon and if odd you're
 # usage
 
 ```
-usage: bezier-text (INFILE)
+usage: qbzf (INFILE)
 
   -i INFILE     Read from this font file.
   -o OUTFILE    Write bezier text output to this file. Default: "-" (stdout)
 
-  -l --list     List all codes from the input font file.
+  -l --list     List all codes from the input ttf font file.
+  -m --meta     List unitsPerEm and glyph unicodes as ranges for each INFILE,
+                which can be a ttf or qbzf font file.
+
   -u --unicode  Only include glyphs with these unicode values.
   -c --char     Only include glyphs with these character values.
   -x --index    Only include glyphs with these indexes.
 
   -h --help     Show this message.
-  -v --version  Print software version (1.0.0).
+  -v --version  Print software version (1.1.0).
 
   Unicode and index lists can be specified with multiple flags (-u 97 -u 98 -u 99)
   or with comma-separated lists (-u 97,98,99).
