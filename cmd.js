@@ -17,13 +17,55 @@ var argv = minimist(process.argv.slice(2), {
     u: ['unicode','unicodes'],
     c: ['char','chars'],
     x: ['index','indexes'],
-    l: 'ls',
+    l: ['ls','list'],
+    m: ['meta'],
   },
-  boolean: [ 'help', 'version', 'ls' ],
+  boolean: [ 'help', 'version', 'list', 'meta' ],
   default: { outfile: '-' },
 })
 
 var magic = Buffer.from(require('./lib/magic.js').concat(0x0a))
+var outstream = argv.outfile === '-' ? process.stdout : fs.createWriteStream(argv.outfile)
+
+if (argv.meta) {
+  var compare = require('./lib/compare.js')
+  var infiles = [].concat(argv.infile || []).concat(argv._)
+  var index = 0
+  return pump(from(function (size, next) {
+    if (index >= infiles.length) return next(null, null)
+    var infile = infiles[index++]
+    fs.readFile(infile, function (err, buf) {
+      var data = buf.buffer
+      var fileType = compare(magic, buf.slice(0,magic.length)) === 0 ? 'qbzf' : 'ttf'
+      if (fileType === 'ttf') {
+        var font = opentype.parse(data)
+        var keys = Object.keys(font.glyphs.glyphs)
+        var unicodes = keys.map(k => font.glyphs.glyphs[k].unicodes)
+          .filter(u => u.length > 0).sort(cmpu)
+        var ranges = [], range = [null,null]
+        var prev = []
+        for (var i = 0; i < unicodes.length; i++) {
+          var u = unicodes[i]
+          if (range[0] === null) {
+            range[0] = u.length === 1 ? u[0] : u
+          } else if (diffu(prev,u) > 1) {
+            range[1] = prev.length === 1 ? prev[0]+1 : [prev[0],prev[1]+1]
+            ranges.push(range[1]-range[0] === 1 ? range[0] : range)
+            range = [ u.length === 1 ? u[0] : u, null ]
+          }
+          prev = u
+        }
+        if (range[0] !== null) {
+          range[1] = prev.length === 1 ? prev[0] : prev
+          ranges.push(range[1]-range[0] === 1 ? range[0] : range)
+        }
+        next(null, JSON.stringify({ file: infile, unicodes: ranges })+'\n')
+      } else {
+      }
+    })
+  }), outstream, onerror)
+  return
+}
 
 var infile = argv.infile ?? argv._[0]
 if (argv.version) return console.log(require('./package.json').version)
@@ -31,7 +73,6 @@ if (infile === undefined || argv.help) return usage()
 var data = fs.readFileSync(infile).buffer
 var font = opentype.parse(data)
 
-var outstream = argv.outfile === '-' ? process.stdout : fs.createWriteStream(argv.outfile)
 var isHeader = true
 var indexes = []
 
@@ -75,7 +116,7 @@ uniq(indexes)
 indexes.sort((a,b) => a < b ? -1 : +1)
 
 var index = 0
-if (argv.ls) {
+if (argv.list) {
   return pump(from(function (size, next) {
     if (index >= indexes.length) return next(null, null)
     while (true) {
@@ -108,12 +149,15 @@ pump(from(function (size, next) {
 
 function usage() {
   console.log(`
-    usage: bezier-text (INFILE)
+    usage: qbzf (INFILE)
 
       -i INFILE     Read from this font file.
       -o OUTFILE    Write bezier text output to this file. Default: "-" (stdout)
 
-      -l --list     List all codes from the input font file.
+      -l --list     List all codes from the input ttf font file.
+      -m --meta     List unitsPerEm and glyph unicodes as ranges for each INFILE,
+                    which can be a ttf or qbzf font file.
+
       -u --unicode  Only include glyphs with these unicode values.
       -c --char     Only include glyphs with these character values.
       -x --index    Only include glyphs with these indexes.
@@ -137,4 +181,20 @@ function onerror(err) {
     console.error(err)
     process.exit(1)
   }
+}
+
+function cmpu(a,b) {
+  if (a[0] === b[0] && a.length === b.length) {
+    return a[1] < b[1] ? -1 : + 1
+  } else if (a[0] === b[0]) {
+    return a.length < b.length ? -1 : +1
+  }
+  return a[0] < b[0] ? -1 : +1
+}
+
+function diffu(a,b) {
+  if (a.length === 1 && b.length === 1) return b[0]-a[0]
+  if (a.length !== b.length) return 100
+  if (a[0] === b[0] && a[1]+1 === b[0]) return 0
+  return 100
 }
