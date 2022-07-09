@@ -31,6 +31,7 @@ if (argv.meta) {
   var compare = require('./lib/compare.js')
   var infiles = [].concat(argv.infile || []).concat(argv._)
   var index = 0
+  var QBZF = null
   return pump(from(function (size, next) {
     if (index >= infiles.length) return next(null, null)
     var infile = infiles[index++]
@@ -42,26 +43,37 @@ if (argv.meta) {
         var keys = Object.keys(font.glyphs.glyphs)
         var unicodes = keys.map(k => font.glyphs.glyphs[k].unicodes)
           .filter(u => u.length > 0).sort(cmpu)
-        var ranges = [], range = [null,null]
-        var prev = []
-        for (var i = 0; i < unicodes.length; i++) {
-          var u = unicodes[i]
-          if (range[0] === null) {
-            range[0] = u.length === 1 ? u[0] : u
-          } else if (diffu(prev,u) > 1) {
-            range[1] = prev.length === 1 ? prev[0]+1 : [prev[0],prev[1]+1]
-            ranges.push(range[1]-range[0] === 1 ? range[0] : range)
-            range = [ u.length === 1 ? u[0] : u, null ]
-          }
-          prev = u
-        }
-        if (range[0] !== null) {
-          range[1] = prev.length === 1 ? prev[0] : prev
-          ranges.push(range[1]-range[0] === 1 ? range[0] : range)
-        }
-        next(null, JSON.stringify({ file: infile, unicodes: ranges })+'\n')
       } else {
+        if (!QBZF) QBZF = require('./')
+        var qbzf = QBZF(buf)
+        var unicodes = []
+        for (var k of qbzf._glyphs.keys()) {
+          var u = k.split(',').map(Number)
+          unicodes.push(u)
+        }
       }
+      var ranges = [], range = [null,null]
+      var prev = []
+      for (var i = 0; i < unicodes.length; i++) {
+        var u = unicodes[i]
+        if (range[0] === null) {
+          range[0] = u.length === 1 ? u[0] : u
+        } else if (diffu(prev,u) > 1) {
+          range[1] = prev.length === 1 ? prev[0]+1 : [prev[0],prev[1]+1]
+          ranges.push(range[1]-range[0] === 1 ? range[0] : range)
+          range = [ u.length === 1 ? u[0] : u, null ]
+        }
+        prev = u
+      }
+      if (range[0] !== null) {
+        range[1] = prev.length === 1 ? prev[0] : prev
+        ranges.push(range[1]-range[0] === 1 ? range[0] : range)
+      }
+      next(null, JSON.stringify({
+        file: infile,
+        type: fileType,
+        unicodes: ranges,
+      })+'\n')
     })
   }), outstream, onerror)
   return
