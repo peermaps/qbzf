@@ -28,9 +28,9 @@ function QBZF(src, opts) {
   this._iv = new Map
   this._cells = new Map
   this._index = 0
-  this._density = opts.density ?? [200,200]
+  this._density = opts.density !== undefined ? opts.density : [200,200]
   this.unitsPerEm = 0
-  this._epsilon = opts.epsilon ?? 1e-8
+  this._epsilon = opts.epsilon !== undefined ? opts.epsilon : 1e-8
   this._parse(src)
   this.curves = this._buildCurves()
 }
@@ -139,10 +139,10 @@ QBZF.prototype._buildCurves = function () {
 }
 
 QBZF.prototype.measure = function (opts) {
-  var density = opts.density ?? this._density
-  var padding = opts.padding ?? defaultPadding
-  var strokeWidth = opts.strokeWidth ?? 0
-  var xoffset = opts.offset ?? defaultOffset
+  var density = opts.density !== undefined ? opts.density : this._density
+  var padding = opts.padding !== undefined ? opts.padding : defaultPadding
+  var strokeWidth = opts.strokeWidth !== undefined ? opts.strokeWidth : 0
+  var xoffset = opts.offset !== undefined ? opts.offset : defaultOffset
   if (padding.length === 2) {
     padding = vec4set(padding0, padding[0], padding[1], padding[0], padding[1])
   } else {
@@ -154,7 +154,7 @@ QBZF.prototype.measure = function (opts) {
   padding[3] += strokeWidth
   var units = [0,0]
   var bbox = [Infinity,Infinity,-Infinity,-Infinity]
-  var text = opts.text ?? ''
+  var text = opts.text !== undefined ? opts.text : ''
   for (var i = 0; i < text.length; i++) {
     var code = text.charCodeAt(i)
     var g = this._glyphs.get(String(code))
@@ -176,7 +176,7 @@ QBZF.prototype.write = function (opts) {
   opts = this.measure(opts)
   var units = opts.units
   var grid = opts.grid
-  var strokeWidth = opts.strokeWidth ?? 0
+  var strokeWidth = opts.strokeWidth !== undefined ? opts.strokeWidth : 0
   var text = opts.text
   this._matches.clear()
   var offset = opts.offset || origin
@@ -194,7 +194,7 @@ QBZF.prototype.write = function (opts) {
   var width = Math.ceil(Math.sqrt(l)/q)*q
   var height = Math.ceil(l/width)
   var length = width * height * 4
-  var data = opts.data ?? new Uint8Array(length)
+  var data = opts.data !== undefined ? opts.data : new Uint8Array(length)
   if (data.length < length) {
     throw new Error(`insufficient supplied data in qbzf.write. required: ${length} received: ${data.length}`)
   }
@@ -252,7 +252,7 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
       var r2 = rect0[2] - px + g.bbox[0]
       var r3 = rect0[3] - py + g.bbox[1]
       var gk = gx+gy*grid[0]
-      var m = this._matches.get(gk) ?? 0
+      var m = this._matches.get(gk) || 0
 
       var urc = 0
       for (var i = 0; i < g.curves.length; i++) {
@@ -287,7 +287,7 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
         }
       }
       rc.sort(cmp)
-      var iv = this._iv.get(gk) ?? []
+      var iv = this._iv.get(gk) || []
       var q = 0
       if (urc % 2 === 0 && rc.length === 0) {
         q = 1
@@ -331,13 +331,13 @@ QBZF.prototype._stamp = function (code, sx, sy, cursor) {
       if (iv.length > 0) {
         mivxa(iv, iv, vec2set(v0, rect0[1], rect0[3]), 1e-8)
         if (iv.length === 2) {
-          y0 = iv[0] ?? rect0[1]
-          y1 = iv[1] ?? rect0[1]
+          y0 = iv[0] !== undefined ? iv[0] : rect0[1]
+          y1 = iv[1] !== undefined ? iv[1] : rect0[1]
         } else if (iv.length === 4) {
           iv.push(rect0[1], rect0[3])
           mivxa(iv, iv, vec2set(v0, rect0[1], rect0[3]), 1e-8)
-          y1 = iv[0] ?? rect0[1]
-          y0 = iv[1] ?? rect0[1]
+          y1 = iv[0] !== undefined ? iv[0] : rect0[1]
+          y0 = iv[1] !== undefined ? iv[1] : rect0[1]
         } else if (iv.length > 0) {
           // console.log('TODO',gx,gy,iv)
         }
